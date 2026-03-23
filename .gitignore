@@ -1,0 +1,9 @@
+
+# Environment variables (contains secrets)
+.env
+
+# HubSpot config file
+hubspot.config.yml
+
+# Test results (may contain HubSpot data)
+docs/test-results/

@@ -1,0 +1,11 @@
+{
+  "name": "pluginbrands-toolkit",
+  "version": "1.0.0",
+  "description": "PluginBrands commercial toolkit — skills for client reporting, pitches, and sales narratives",
+  "author": {
+    "name": "PluginBrands",
+    "url": "https://www.pluginbrands.com"
+  },
+  "repository": "",
+  "license": "UNLICENSED"
+}

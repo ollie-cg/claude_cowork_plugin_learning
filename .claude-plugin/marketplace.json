@@ -1,0 +1,21 @@
+{
+  "name": "pluginbrands-marketplace",
+  "owner": {
+    "name": "PluginBrands",
+    "email": "hello@pluginbrands.com",
+    "url": "https://www.pluginbrands.com"
+  },
+  "plugins": [
+    {
+      "name": "pluginbrands-toolkit",
+      "source": "./plugins/pluginbrands-toolkit",
+      "description": "PluginBrands commercial toolkit — skills for client reporting, pitches, and sales narratives",
+      "version": "1.0.0",
+      "author": {
+        "name": "PluginBrands"
+      },
+      "keywords": ["sales", "reporting", "commercial", "FMCG"],
+      "category": "business"
+    }
+  ]
+}
