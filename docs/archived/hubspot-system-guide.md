@@ -30,13 +30,13 @@ Company ←→ Contact                         (people and organisations)
 
 | Entity | What it is | Records | Example |
 |--------|-----------|---------|---------|
-| **Company** | Any organisation — a client brand or a buyer | 2,239 | "Sodexo", "MOJU Ltd" |
-| **Contact** | A person at a company | 6,098 | "Jane Smith, Category Manager at Sodexo" |
-| **Deal** | A sales opportunity (client acquisition or buyer development) | 1,477 | "Farmer J" (buyer deal), "MOJU" (client deal) |
-| **Client Service** | The live contract with a client brand | 19 | "MOJU" — MRR, scope, contract terms |
+| **Company** | Any organisation — a client brand or a buyer | 2,283 | "Sodexo", "MOJU Ltd" |
+| **Contact** | A person at a company | 6,273 | "Jane Smith, Category Manager at Sodexo" |
+| **Deal** | A sales opportunity (client acquisition or buyer development) | 1,488 | "Farmer J" (buyer deal), "MOJU" (client deal) |
+| **Client Service** | The live contract with a client brand | 20 | "MOJU" — MRR, scope, contract terms |
 | **Client Product** | A product SKU with full specifications | 157 | "Moju Ginger Shot 60ml" — EAN, case size, nutritional data |
-| **Brand** | One client's brand being pitched to one buyer | 868 | "MOJU / Farmer J [494017450175]" |
-| **Product Pitch** | One SKU being proposed to one buyer | 6,043 | "Moju Ginger Shot at Farmer J → Proposed" |
+| **Brand** | One client's brand being pitched to one buyer | 1,264 | "MOJU / Farmer J [494017450175]" |
+| **Product Pitch** | One SKU being proposed to one buyer | 6,276 | "Moju Ginger Shot at Farmer J → Proposed" |
 
 ### How the entities connect
 
@@ -217,8 +217,22 @@ The heaviest data entry happens when a client signs up:
 
 ### What's automated
 
-- **Brand record creation** — workflow creates Brand records when Deals are created (confirmed by naming pattern and a current duplicate bug creating records on 80-104 minute intervals)
-- **Client Service countdown stages** — date-driven workflow automation (6/3/2/1 months till rolling, 3/2/1 months from leave)
+See the full [Automations](#automations--workflows) section below. Summary:
+
+- **Brand record creation** — workflow creates Brand records when a Buyer Deal enters Discovery (one per associated Client Service)
+- **Product Pitch creation** — workflow creates Product Pitches when a Brand moves stage (one per Client Product under the Client Service)
+- **Product Pitch naming** — auto-set to `PRODUCT / BUYER - CLIENT [ID]` from fetched Brand and Client Product data
+- **Deal ↔ Brand stage sync** — Deal stage changes cascade to associated Brand stages via a mapping table
+- **Cascading loss** — all Product Pitches lost → Brand lost → all Brands lost → Deal lost
+- **Cascading win** — Product Pitch placed → Brand won → Deal won
+- **Client Service countdown stages** — date-driven automation (6/3/2/1 months till rolling, 3/2/1 months from leave, off-boarding countdown)
+- **Client Service creation** — auto-created when a Client Deal closes won
+- **MRR/TCV calculation** — `mrr` synced from `contract_value`; TCV calculated as MRR × months since start
+- **Deal auto-close** — deals stale for 60 days at Feedback Pending auto-close as No Response
+- **Lead recycling** — won deals create "Upsell" leads after 90 days; no-response deals create "Reattempting" leads after 60 days; lost deals reattempt after 180 days
+- **Lead → Deal conversion** — qualified Client Leads auto-create Deals in the Client Deal Pipeline
+- **Lead disqualification recycling** — disqualified Leads with `recycle = YES` re-enter pipeline after 6 months
+- **Company ↔ Lead sync** — employee count and industry sync from Lead to associated Company
 - **`client_name_sync`** — synced text field across Brand and Product Pitch records
 - **Meeting creation** — calendar integration syncs meetings into HubSpot
 
@@ -280,11 +294,158 @@ This requires multiple API hops. Activities are associated to Deals and Contacts
 
 ---
 
+## Automations & Workflows
+
+There are **30 active flows** in the portal (29 enabled, 1 disabled). Several use custom Python/Node.js code actions via HubSpot Operations Hub. Accessed via `GET /automation/v4/flows` and `GET /automation/v3/workflows`.
+
+### The automation chain
+
+This is how the workflows connect end-to-end:
+
+```
+Lead qualified
+  └→ Creates Deal (Client or Buyer)
+
+Client Deal Closed Won
+  └→ Creates Client Service (0-162)
+       └→ Time-based stage movers run (rolling/leaving countdowns)
+       └→ MRR and TCV are auto-calculated
+
+Buyer Deal enters Discovery (with Client Service associated)
+  └→ Creates Brand(s) — one per Client Service
+       └→ Removes Client Service ↔ Deal link
+  └→ Deal stage changes cascade to Brand stages via mapping
+
+Brand moves to a new stage
+  └→ Creates Product Pitches — one per Client Product
+       └→ Associates each Product Pitch to Brand + Client Product
+       └→ Product Pitch name auto-set: "PRODUCT / BUYER - CLIENT [ID]"
+
+Product Pitch → Declined/Discontinued (all of them)
+  └→ Brand → Lost
+
+Brand → Lost (all of them)
+  └→ Deal → Closed Lost
+
+Product Pitch → Product Placed
+  └→ Brand → Won
+       └→ Deal → Won
+
+Deal → Won
+  └→ After 90 days → Creates "Upsell" Lead
+
+Deal → No Response
+  └→ After 60 days → Creates "Reattempting" Lead
+
+Deal → Lost
+  └→ After 180 days → Creates "Reattempting" Lead
+
+Deal stale 60 days at Feedback Pending
+  └→ Auto-closes as No Response (email notification sent)
+```
+
+### Lead flows (5 flows, object type `0-136`)
+
+| Flow | ID | Status | Trigger | Action |
+|------|-----|--------|---------|--------|
+| **Client Lead → Qualified** | `3058177272` | ON | Lead enters "Qualified" stage in Client Lead Pipeline | Creates a Deal in Client Deal Pipeline at Discovery, copies owner |
+| **Client Lead → Disqualified** | `3058342079` | ON | Lead enters "Disqualified" stage | If `recycle = YES (IN 6 MONTHS)`: waits 180 days, re-stages Lead |
+| **Buyer Lead → Disqualified (clone)** | `3058175219` | ON | Lead enters "Disqualified" in Buyer Pipeline | Same recycle logic — wait 6 months, re-stage |
+| **Buyer Lead → Disqualified** | `3058429169` | ON | Lead enters "Disqualified" in Buyer Pipeline | Same recycle pattern |
+| **Employees/Industry Sync** | `3058429142` | ON | Lead property change | Syncs `employees` → Company `numberofemployees`, Lead `sector` → Company `industry` |
+
+### Deal flows (12 flows, object type `0-3`)
+
+| Flow | ID | Status | Trigger | Action |
+|------|-----|--------|---------|--------|
+| **Client Deal → Closed Won** | `3091609813` | ON | Client Deal enters "Closed Won" | (Triggers downstream; no visible inline actions) |
+| **Client Deal → Closed Lost** | `3091637468` | ON | Client Deal enters "Closed Lost" | If `recycle = YES (IN 6 MONTHS)`: waits 180 days, re-stages |
+| **Create Service on Client Deal Close** | `3150549212` | ON | Client Deal closes | Creates a Client Service (`0-162`) with `hs_name = dealname`, in Service Pipeline |
+| **Create Brands from Deal in Discovery** | `3523907825` | ON | Deal enters stage `4443390193` (Discovery). Re-enrollment enabled | **Python script (2 actions):** Action 1: gets Deal name + associated Client Services → for each, creates a Brand (`0-970`) named `SERVICE / DEAL [DEAL_ID]` at "Brand Pitched" stage, associates Brand → Deal and Brand → Service. Action 2: removes all Client Service associations from the Deal |
+| **Map Deal Stage to Brand Stage** | `3540255935` | ON | Deal stage changes | **Python script.** Mapping: Deal Follow Up (`4443390195`) → Brand Waiting (`4447561934`), Deal Feedback Pending (`4443390196`) → Brand Samples Requested (`4447561935`), Deal Feedback Received (`4443390197`) → Brand Proposal (`4447561936`), Deal Proposal (`4443390198`) → Brand Waiting for Feedback (`4447561937`). Updates ALL associated Brands |
+| **When Brand is Won → Set Deal to Won** | `3615473888` | ON | (Triggered by Brand flow) | Sets deal stage to Won (`4443390199`) |
+| **Buyer Deal → Follow Up timer** | `3621268704` | ON | Deal enters "Follow Up" | Waits 24 hours, moves Deal to "Feedback Pending" (`4443390195`) |
+| **Buyer Deal → Feedback Received** | `3621270756` | ON | Deal enters "Feedback Received" | (No inline actions — placeholder) |
+| **Auto-close after 60 days** | `3621270759` | ON | Deal enrolled (enrollment criteria) | Waits 60 days. If still at "Feedback Pending": emails owner `"[Deal] has been automatically closed"`, moves to "No Response" (`4443390200`) |
+| **Upsell 90 days after Win** | `3856414964` | ON | Deal enters Won (`4443390199`) | Waits 90 days. **Python script:** gets associated Company + Contacts, creates a Lead titled `"Upsell - [COMPANY]"` with Primary Company/Contact associations |
+| **Reattempt 60 days after No Response** | `3856741608` | ON | Deal enters No Response (`4443390200`) | Waits 60 days. Creates Lead titled `"Reattempting - [COMPANY]"` |
+| **Reattempt 180 days after Lost** | `3856741624` | ON | Deal enters Lost | Waits 180 days. Creates Lead titled `"Reattempting - [COMPANY]"` |
+
+### Brand flows (4 flows, object type `0-970`)
+
+| Flow | ID | Status | Trigger | Action |
+|------|-----|--------|---------|--------|
+| **Create Product Pitch on Brand Movement** | `3585155261` | ON | Brand changes pipeline stage | **Python script:** gets associated Client Service → gets all Client Products for that service → for each, creates a Product Pitch (`0-420`) named `PRODUCT - SERVICE` at "Proposed" stage in Product Pitch Pipeline, associates Pitch → Brand and Pitch → Client Product |
+| **When Product is Placed → Set Brand to Won** | `3615473872` | ON | (Triggered by Product Pitch placement) | Sets Brand stage to Won (`4447561938`) |
+| **When All Brands Lost → Close Buyer Deal** | `3621266653` | ON | Brand enters Lost (`4447561939`) | **Python script:** gets associated Deal, fetches ALL Brands for that Deal, checks if every Brand is at "Lost". If yes: moves Deal to closed stage (`3774636266`) |
+| **Unnamed workflow** | `3585155280` | OFF | — | Empty/disabled |
+
+### Product Pitch flows (2 flows, object type `0-420`)
+
+| Flow | ID | Status | Trigger | Action |
+|------|-----|--------|---------|--------|
+| **Update Naming of Product Pitches** | `3585155320` | ON | Product Pitch created/updated | Sets `client_name_sync` from associated Brand's `client_name_sync`. Sets `hs_name` to `PRODUCT_NAME / BUYER_NAME - CLIENT_NAME [ID]` using fetched data from Brand (`fetched_object_1227905237`) and Client Product (`fetched_object_1227905238`) |
+| **If ALL Products Lost → Update Brand** | `3621264628` | ON | Product Pitch enters Declined (`4549842109`) or Discontinued (`4549842110`) | **Python script:** gets associated Brand, fetches ALL Product Pitches for that Brand, checks if every one is Declined or Discontinued. If yes: moves Brand to "Lost" (`4447561939`) |
+
+### Client Service flows (7 flows, object type `0-162`)
+
+| Flow | ID | Status | Trigger | Action |
+|------|-----|--------|---------|--------|
+| **Move Renewed to In Contract** | `3103017163` | ON | Client Service enters "Renewed" | Sets stage to "In Contract" (`3843969243`) |
+| **Off Boarding Pipeline Mover** | `3103017203` | ON | Client Service enters "Leaving" | Date countdown using `agreed_leave_date`: at -90 days → "3 Months from Leave", -60 → "2 Months", -30 → "1 Month", at date → "Off-boarded" |
+| **Time Till Rolling Mover** | `3106901212` | ON | Client Service in contract | Date countdown using `hs_close_date`: at -180 days → "6 Months till Rolling", -90 → "3 Months", -60 → "2 Months", -30 → "1 Month", at date → "Rolling Agreement" |
+| **Time Till Leaving** | `3485716716` | ON | Client Service approaching leave | Date countdown using `agreed_leave_date`: at -90 → "3 Months from Leave", -60 → "2 Months", -30 → "1 Month", at date → "Off-boarded" |
+| **Notify Client Owner and Charlie** | `3493031136` | OFF | Client Service stage changes | Sends internal email: `"[NAME] has moved to a new stage: [STAGE]"` to Charlie Knight (user 25745855) + record owner. Currently disabled |
+| **Store Sold MRR** | `3909881063` | ON | Client Service updated | Copies `contract_value` (calculated from Deal) into `mrr` field |
+| **Calculate TCV** | `3911079121` | ON | `mrr` or `hs_start_date` changes | **Node.js custom code:** calculates `Total Customer Value = MRR × months elapsed since start date`. Stores result in `total_customer_value` |
+
+### Custom-coded actions summary
+
+8 of the 30 flows contain custom Python or Node.js code running on HubSpot Operations Hub:
+
+| Flow | Runtime | What the code does |
+|------|---------|-------------------|
+| Create Brands from Deal in Discovery | Python 3.9 | Creates Brand records, associates to Deal + Service, then removes Service ↔ Deal links |
+| Map Deal Stage to Brand Stage | Python 3.9 | Reads deal stage, looks up mapping, updates all associated Brand stages |
+| Create Product Pitch on Brand Movement | Python 3.9 | Creates Product Pitch records from Client Products, associates to Brand + Client Product |
+| If ALL Products Lost → Update Brand | Python 3.9 | Checks every sibling Product Pitch stage; if all Declined/Discontinued, sets Brand to Lost |
+| When All Brands Lost → Close Deal | Python 3.9 | Checks every sibling Brand stage; if all Lost, closes the Deal |
+| Upsell 90 days after Win | Python 3.9 | Creates Lead with company/contact associations |
+| Reattempt 60 days after No Response | Python 3.9 | Creates Lead with company/contact associations |
+| Reattempt 180 days after Lost | Python 3.9 | Creates Lead with company/contact associations |
+| Calculate TCV | Node 20.x | Calculates MRR × months since start |
+
+All Python scripts use a `HUBSPOT_TOKEN` secret stored in the workflow secrets, and call the HubSpot REST API directly via `requests`.
+
+### Deal stage ↔ Brand stage mapping
+
+This mapping is hardcoded in the "Map Deal Stage to Brand Stage" workflow:
+
+| Deal Stage | Deal Stage ID | Brand Stage | Brand Stage ID |
+|-----------|---------------|-------------|----------------|
+| Follow Up | `4443390195` | Waiting | `4447561934` |
+| Feedback Pending | `4443390196` | Samples Requested | `4447561935` |
+| Feedback Received | `4443390197` | Proposal | `4447561936` |
+| Proposal | `4443390198` | Waiting for Feedback | `4447561937` |
+
+Stages not in this mapping (Discovery, Won, Lost, No Response) do not cascade to Brands.
+
+### Known automation issues
+
+| Issue | Detail |
+|-------|--------|
+| **Duplicate Brand creation** | The "Create Brands from Deal in Discovery" workflow has `shouldReEnroll: true` and re-enrollment triggers on `dealstage` change. If a deal re-enters Discovery or the stage property is touched, it creates a full new set of Brands without checking for duplicates. This explains the 80-104 minute duplicate cycle observed for MOJU. |
+| **Product Pitches created on every Brand stage move** | "Create Product Pitch on Brand Movement" triggers on any Brand stage change, not just the first. A Brand moving through Pitched → Waiting → Samples Requested creates Product Pitches at each transition. This explains Brands with `total_number_of_products: 221` for services with only a handful of Client Products. |
+| **Off-boarding has two overlapping workflows** | Both "Off Boarding Pipeline Mover" (`3103017203`) and "Time Till Leaving" (`3485716716`) use `agreed_leave_date` for countdowns with similar stage progressions. They may conflict or double-trigger stage changes. |
+| **Notification workflow disabled** | "Notify Client Owner and Charlie" is OFF. Stage changes to Client Services are not being communicated to stakeholders. |
+
+---
+
 ## Known data quality issues
 
 ### Duplicate Brand records
 
-A HubSpot workflow is creating duplicate Brand records on fixed intervals (80-104 minutes), running 24/7. For MOJU alone: Farmer J has 31 identical records, CBRE (Baxterstorey) has 26. All duplicates are identical — same name, same stage, 0 products. The workflow likely lacks a guard condition ("only create if a Brand doesn't already exist for this client + buyer").
+The "Create Brands from Deal in Discovery" workflow (flow `3523907825`) has `shouldReEnroll: true` with re-enrollment triggered by `dealstage` property changes. When a deal's stage is touched — even if it stays at Discovery — the workflow fires again and creates a new full set of Brand records without checking for duplicates. For MOJU alone: Farmer J has 31+ identical records. The root cause is confirmed: the workflow lacks a guard condition ("only create if a Brand doesn't already exist for this client + buyer + deal"). Additionally, the "Create Product Pitch on Brand Movement" workflow (`3585155261`) fires on every Brand stage change, not just the initial creation, which multiplies the duplicates with redundant Product Pitch records.
 
 ### Products placed = 0 everywhere
 

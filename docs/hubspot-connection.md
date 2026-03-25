@@ -79,13 +79,13 @@ The four "custom" entities in this portal are **repurposed native HubSpot object
 
 | Entity | objectTypeId | HubSpot Native Type | Records | Example API path |
 |--------|-------------|---------------------|---------|-----------------|
-| Contact | `0-1` | Contact | ~6,200 | `/crm/v3/objects/contacts` |
-| Company | `0-2` | Company | ~2,250 | `/crm/v3/objects/companies` |
-| Deal | `0-3` | Deal | ~1,478 | `/crm/v3/objects/deals` |
-| **Client Service** | **`0-162`** | Service | 19 | `/crm/v3/objects/0-162` |
+| Contact | `0-1` | Contact | 6,273 | `/crm/v3/objects/contacts` |
+| Company | `0-2` | Company | 2,283 | `/crm/v3/objects/companies` |
+| Deal | `0-3` | Deal | 1,488 | `/crm/v3/objects/deals` |
+| **Client Service** | **`0-162`** | Service | 20 | `/crm/v3/objects/0-162` |
 | **Client Product** | **`0-410`** | Course | 157 | `/crm/v3/objects/0-410` |
-| **Product Pitch** | **`0-420`** | Listing | 6,229 | `/crm/v3/objects/0-420` |
-| **Brand** | **`0-970`** | Project | 1,212 | `/crm/v3/objects/0-970` |
+| **Product Pitch** | **`0-420`** | Listing | 6,276 | `/crm/v3/objects/0-420` |
+| **Brand** | **`0-970`** | Project | 1,264 | `/crm/v3/objects/0-970` |
 | Lead | `0-136` | Lead | — | `/crm/v3/objects/0-136` |
 
 ### Querying custom objects
@@ -135,8 +135,35 @@ All tested with the "Ollie - Test" service key:
 | `GET /crm/v3/pipelines/{type}` | Works |
 | `GET /crm/v3/owners` | Works |
 | `GET /crm/v3/schemas` | Returns empty (expected — not user-created custom objects) |
+| `GET /automation/v4/flows` | Works — returns all 30 workflow flows |
+| `GET /automation/v4/flows/{flowId}` | Works — returns full flow detail including custom code source |
+| `GET /automation/v3/workflows` | Works — returns v3 workflow format (1 legacy workflow) |
+
+## Workflow/Automation API
+
+The portal has **30 flows** (29 enabled, 1 disabled) accessible via the v4 API. Several contain custom Python 3.9 / Node 20.x code actions.
+
+```bash
+# List all flows
+curl -H "Authorization: Bearer $HUBSPOT_TOKEN" \
+  "https://api.hubapi.com/automation/v4/flows"
+
+# Get full flow detail (including source code of custom actions)
+curl -H "Authorization: Bearer $HUBSPOT_TOKEN" \
+  "https://api.hubapi.com/automation/v4/flows/{flowId}"
+```
+
+Key response fields:
+- `actions[]` — the action nodes (not `nodes` — that's the v3 format)
+- `actions[].sourceCode` — Python/Node.js source for custom-coded actions
+- `actions[].secretNames` — secrets used (e.g., `HUBSPOT_TOKEN`)
+- `actions[].runtime` — `PYTHON39` or `NODE20X`
+- `enrollmentCriteria` — trigger conditions
+- `dataSources` — fetched associated objects available to the flow
+
+See [hubspot-system-guide.md](./archived/hubspot-system-guide.md) for full documentation of all 30 workflows.
 
 ## Related documentation
 
-- [hubspot-system-guide.md](./hubspot-system-guide.md) — Data model, entity relationships, and how operators use the system
-- [hubspot-framework-testing-process.md](./hubspot-framework-testing-process.md) — Test harness for measuring LLM understanding of the HubSpot environment
+- [hubspot-system-guide.md](./archived/hubspot-system-guide.md) — Data model, entity relationships, automations, and how operators use the system
+- [hubspot-framework-testing-process.md](./archived/hubspot-framework-testing-process.md) — Test harness for measuring LLM understanding of the HubSpot environment
