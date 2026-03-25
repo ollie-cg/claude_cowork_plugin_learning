@@ -5,5 +5,6 @@
 # HubSpot config file
 hubspot.config.yml
 
-# Test results (may contain HubSpot data)
-docs/test-results/
+# Test results (may contain HubSpot data and tokens)
+docs/archived/test-results/
+tests/runs/

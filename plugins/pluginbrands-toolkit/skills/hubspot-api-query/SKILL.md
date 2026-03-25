@@ -68,6 +68,11 @@ These are repurposed native HubSpot types. `/crm/v3/schemas` returns empty. Name
 5. Move Deal/Brand/Product Pitch stages as pitch progresses
 6. Brand → "Won" when buyer accepts the brand; Product Pitch → "Product Placed" when SKU lands
 
+## Field Value Standards
+
+- **Country:** Always use the full name `"United Kingdom"`, never abbreviations like `"UK"` or `"GB"`. HubSpot stores countries as full names.
+- **`buyer` on Deals:** This is a **calculated read-only field**. It auto-populates from the associated company name. Do NOT set it when creating a deal — the API will reject it.
+
 ## Known Data Quality Issues — Flag These
 
 | Issue | Detail |

@@ -2,13 +2,13 @@
 
 ## Overview
 
-This project connects to the PluginBrands HubSpot portal (`24916652`, EU datacenter) via the HubSpot REST API. The connection is **read-only** and used for querying CRM data — contacts, companies, deals, custom objects, and schemas.
+This project connects to the PluginBrands HubSpot portal (`24916652`, EU datacenter) via the HubSpot REST API.
 
 ## Authentication
 
-We use a **HubSpot Private App Token (PAT)**. The `pat-` prefix confirms this is a Private App token, managed under Settings > Integrations > Private Apps in the HubSpot UI.
+We use a **HubSpot Service Key**. Despite the `pat-` prefix, this is a service key (not a Private App token), managed under Settings > Account Management > Integrations in the HubSpot UI.
 
-- **Token format:** `pat-eu1-...` (Private App Token)
+- **Token format:** `pat-eu1-...` (Service Key)
 - **Auth method:** Bearer token in the `Authorization` header
 - **Datacenter:** EU (`eu1`)
 - **Portal ID:** `24916652`
@@ -36,13 +36,13 @@ source .env && export HUBSPOT_TOKEN
 
 ### Token management
 
-- **Rotate:** HubSpot UI > Settings > Integrations > Private Apps > select app > Rotate
+- **Manage:** HubSpot UI > Settings > Account Management > Integrations
 - **Current key name:** "Ollie - Test"
-- **Scopes:** Read-only across all CRM objects (contacts, companies, deals, custom objects, products, quotes, invoices, etc.)
+- **Scopes:** Read and write access across CRM objects (contacts, companies, deals, custom objects, products, quotes, invoices, etc.)
 
 ## Scopes
 
-The PAT has **read-only** access. It cannot create, update, or delete records. Key scopes include:
+Key scopes include:
 
 | Category | Scopes |
 |----------|--------|
@@ -125,7 +125,7 @@ curl -H "Authorization: Bearer $HUBSPOT_TOKEN" \
 
 ## Verified endpoints (2026-03-20)
 
-All tested with the "Ollie - Test" PAT:
+All tested with the "Ollie - Test" service key:
 
 | Endpoint | Status |
 |----------|--------|
