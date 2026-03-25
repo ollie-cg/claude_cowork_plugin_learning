@@ -5,9 +5,11 @@ description: MUST USE for ANY HubSpot query, API call, data retrieval, report bu
 
 # HubSpot API Query — PluginBrands
 
-## Iron Law
+## Iron Laws
 
-**NEVER query custom objects by name. ALWAYS use the numeric objectTypeId from the table below. NEVER explore the API — use the object IDs and query patterns in this skill.**
+1. **NEVER query custom objects by name. ALWAYS use the numeric objectTypeId from the table below. NEVER explore the API — use the object IDs and query patterns in this skill.**
+
+2. **When creating a Buyer Deal, you MUST associate at least one Client Service (`0-162`).** This triggers a HubSpot workflow that auto-creates Brand records (one per Client Service selected). Without it, no Brands are created and the deal is incomplete. If the user doesn't specify which Client Service(s), query available ones and present the list before creating the deal.
 
 ## What This HubSpot System Is
 
@@ -94,6 +96,24 @@ These are repurposed native HubSpot types. `/crm/v3/schemas` returns empty. Name
 | "I'll use the legacy `[D] Moju` pipeline instead" | Superseded. Use Brand (`0-970`) and Product Pitch (`0-420`). |
 | "The `products_placed` rollup will have the count" | Broken — always 0. Query Product Pitches directly. |
 | "The `amount` field will have financial data" | Null everywhere. State the data isn't available. |
+| "I'll create the deal without a Client Service" | Deal will have no Brands. Always associate at least one Client Service (`0-162`) using association type `795`. |
+
+## Buyer Deal Creation Recipe
+
+1. **Look up available Client Services** — `GET /crm/v3/objects/0-162?limit=100&properties=hs_name` returns all client brands (e.g. MOJU, Love Corn, GLUG!). The `hs_name` field is the display name; the record `id` is what you associate.
+2. **If the user hasn't specified Client Service(s), present the list and ask.** Do NOT create the deal without at least one.
+3. **Create the deal with Client Service association(s) in a single call:**
+   ```json
+   {
+     "properties": { "dealname": "...", "pipeline": "2760762586", "dealstage": "4443390193", ... },
+     "associations": [
+       { "to": {"id": "COMPANY_ID"}, "types": [{"associationCategory": "HUBSPOT_DEFINED", "associationTypeId": 5}] },
+       { "to": {"id": "CLIENT_SERVICE_ID"}, "types": [{"associationCategory": "HUBSPOT_DEFINED", "associationTypeId": 795}] }
+     ]
+   }
+   ```
+4. **A HubSpot workflow fires within seconds** — it creates a Brand record (`0-970`) for each Client Service associated, then **removes** the Client Service association from the deal. The Brand gets `buyer_name` (from dealname) and `client_name_sync` (from the Client Service name) auto-populated.
+5. **To verify**, check the deal's Brand associations: `GET /crm/v3/objects/deals/{id}/associations/0-970`. Do NOT check Client Service associations — they will be empty (consumed by the workflow).
 
 ## Common Query Recipes
 

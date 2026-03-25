@@ -11,7 +11,7 @@
       "category": "buyer_management",
       "name": "Create a company, contact, and buyer deal",
       "trigger": "Operator needs to set up a new buyer with a contact and a deal in the Buyer Deal Pipeline",
-      "prompt": "Create a new company called [TEST] Greenleaf Grocers. They are a retail business based in London, United Kingdom. Their domain is testgreenleafgrocers.com and phone number is 44 2071234567. Then create a contact at that company called Tom Baker. He is a Purchasing Manager in the Buying department, based in London, United Kingdom. His email is tom.baker@testgreenleafgrocers.com and his phone number is 44 2079876543. Set him as a lead. Make sure he is associated to the company. Then create a buyer deal called '[TEST] Greenleaf Grocers - New Deal' in the Buyer Deal Pipeline at the Discovery stage. Set the customer profile to 'High Street'. Make sure the deal is associated to the company.",
+      "prompt": "Create a new company called [TEST] Greenleaf Grocers. They are a retail business based in London, United Kingdom. Their domain is testgreenleafgrocers.com and phone number is 44 2071234567. Then create a contact at that company called Tom Baker. He is a Purchasing Manager in the Buying department, based in London, United Kingdom. His email is tom.baker@testgreenleafgrocers.com and his phone number is 44 2079876543. Set him as a lead. Make sure he is associated to the company. Then create a buyer deal called '[TEST] Greenleaf Grocers - New Deal' in the Buyer Deal Pipeline at the Discovery stage. Set the customer profile to 'High Street'. Make sure the deal is associated to the company. Associate the deal with the MOJU client service so that a Brand record is auto-created.",
       "actions": [
         {
           "id": "create_company",
@@ -148,11 +148,58 @@
               }
             ]
           }
+        },
+        {
+          "id": "verify_brand_auto_created",
+          "description": "Verify a Brand record was auto-created by the workflow with correct client_name_sync",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/0-970/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "buyer_name",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Greenleaf"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "buyer_name",
+                "client_name_sync",
+                "hs_pipeline",
+                "hs_pipeline_stage",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "hs_createdate", "direction": "DESCENDING"}]
+            },
+            "capture": {
+              "brand_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "buyer_name", "operator": "contains", "value": "Greenleaf Grocers" },
+              { "field": "client_name_sync", "operator": "eq", "value": "MOJU" },
+              {
+                "field": "associations",
+                "operator": "associated_to",
+                "object_type": "deals",
+                "value": "{deal_id}"
+              }
+            ]
+          }
         }
       ],
       "teardown": {
-        "description": "Remove test deal, contact, and company",
+        "description": "Remove test brand, deal, contact, and company (brand first, then parent records)",
         "api_calls": [
+          {
+            "id": "delete_brand",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/0-970/{brand_id}"
+          },
           {
             "id": "delete_deal",
             "method": "DELETE",
@@ -176,7 +223,7 @@
       "category": "buyer_management",
       "name": "Create a company, deal, note, and call log",
       "trigger": "Operator needs to set up a new buyer deal and log initial engagement activity (meeting notes and a follow-up call)",
-      "prompt": "Create a new company called '[TEST] Riverside Retail Group'. They are a grocery retailer based in Manchester, United Kingdom. Their domain is testriversideretail.com.\n\nThen create a buyer deal called '[TEST] Riverside Retail Group — Snack Range Pitch' in the Buyer Deal Pipeline at the Discovery stage. Associate the deal to the company.\n\nThen add a note to the deal. The note should contain:\n\"[TEST] Initial meeting notes — Riverside buyer (Jane Cooper, Head of Ambient) wants to see our full protein bar range. Key requirements: minimum 30% retail margin, must have Nutri-Score on pack, 5 working day delivery lead time. Interested in 3 SKUs initially with option to expand to full range if velocity targets are met in first 12 weeks. Next step: send formal proposal by end of week.\"\n\nThen log an outbound call on the deal. The call title should be '[TEST] Follow-up call with Jane Cooper — Riverside'. The call should be marked as completed with a duration of 15 minutes. The call body should contain:\n\"[TEST] Call summary — Spoke with Jane Cooper to follow up on proposal. She confirmed the September gondola reset is the target window. Pricing feedback: our £2.09 RSP works for the 45g bars but she wants £1.89 for the 30g snack bites. She will send planogram dimensions by Thursday. Action items: (1) Revise pricing for 30g range (2) Send updated packaging mockups (3) Confirm MOQs for half-case shippers.\"",
+      "prompt": "Create a new company called '[TEST] Riverside Retail Group'. They are a grocery retailer based in Manchester, United Kingdom. Their domain is testriversideretail.com.\n\nThen create a buyer deal called '[TEST] Riverside Retail Group — Snack Range Pitch' in the Buyer Deal Pipeline at the Discovery stage. Associate the deal to the company. Associate the deal with the Love Corn client service so that a Brand record is auto-created.\n\nThen add a note to the deal. The note should contain:\n\"[TEST] Initial meeting notes — Riverside buyer (Jane Cooper, Head of Ambient) wants to see our full protein bar range. Key requirements: minimum 30% retail margin, must have Nutri-Score on pack, 5 working day delivery lead time. Interested in 3 SKUs initially with option to expand to full range if velocity targets are met in first 12 weeks. Next step: send formal proposal by end of week.\"\n\nThen log an outbound call on the deal. The call title should be '[TEST] Follow-up call with Jane Cooper — Riverside'. The call should be marked as completed with a duration of 15 minutes. The call body should contain:\n\"[TEST] Call summary — Spoke with Jane Cooper to follow up on proposal. She confirmed the September gondola reset is the target window. Pricing feedback: our £2.09 RSP works for the 45g bars but she wants £1.89 for the 30g snack bites. She will send planogram dimensions by Thursday. Action items: (1) Revise pricing for 30g range (2) Send updated packaging mockups (3) Confirm MOQs for half-case shippers.\"",
       "actions": [
         {
           "id": "create_company",
@@ -341,11 +388,58 @@
               }
             ]
           }
+        },
+        {
+          "id": "verify_brand_auto_created",
+          "description": "Verify a Brand record was auto-created by the workflow with correct client_name_sync",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/0-970/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "buyer_name",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Riverside"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "buyer_name",
+                "client_name_sync",
+                "hs_pipeline",
+                "hs_pipeline_stage",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "hs_createdate", "direction": "DESCENDING"}]
+            },
+            "capture": {
+              "brand_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "buyer_name", "operator": "contains", "value": "Riverside Retail Group" },
+              { "field": "client_name_sync", "operator": "eq", "value": "Love Corn" },
+              {
+                "field": "associations",
+                "operator": "associated_to",
+                "object_type": "deals",
+                "value": "{deal_id}"
+              }
+            ]
+          }
         }
       ],
       "teardown": {
-        "description": "Remove test call, note, deal, and company (engagements first, then parent records)",
+        "description": "Remove test brand, call, note, deal, and company (brand + engagements first, then parent records)",
         "api_calls": [
+          {
+            "id": "delete_brand",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/0-970/{brand_id}"
+          },
           {
             "id": "delete_call",
             "method": "DELETE",
@@ -374,7 +468,7 @@
       "category": "buyer_management",
       "name": "Create a deal and move it through every stage of the Buyer Deal Pipeline",
       "trigger": "Operator needs to progress a buyer deal through the full pipeline from Discovery to Won",
-      "prompt": "Create a new company called '[TEST] Northfield Convenience Stores'. They are a convenience retailer based in Leeds, United Kingdom. Their domain is testnorthfieldstores.com.\n\nThen create a buyer deal called '[TEST] Northfield — Full Pipeline Run' in the Buyer Deal Pipeline at the Discovery stage. Associate the deal to the company.\n\nNow move the deal through every open stage of the Buyer Deal Pipeline in order:\n1. Move it to Follow Up\n2. Move it to Feedback Pending\n3. Move it to Feedback Received\n4. Move it to Proposal\n5. Move it to Proposal Feedback Pending\n6. Finally, move it to Won\n\nAfter each move, confirm the deal is at the correct stage before moving to the next one. At the end, the deal should be at the Won stage and marked as closed-won.",
+      "prompt": "Create a new company called '[TEST] Northfield Convenience Stores'. They are a convenience retailer based in Leeds, United Kingdom. Their domain is testnorthfieldstores.com.\n\nThen create a buyer deal called '[TEST] Northfield — Full Pipeline Run' in the Buyer Deal Pipeline at the Discovery stage. Associate the deal to the company. Associate the deal with the GLUG! client service so that a Brand record is auto-created.\n\nNow move the deal through every open stage of the Buyer Deal Pipeline in order:\n1. Move it to Follow Up\n2. Move it to Feedback Pending\n3. Move it to Feedback Received\n4. Move it to Proposal\n5. Move it to Proposal Feedback Pending\n6. Finally, move it to Won\n\nAfter each move, confirm the deal is at the correct stage before moving to the next one. At the end, the deal should be at the Won stage and marked as closed-won.",
       "actions": [
         {
           "id": "create_company",
@@ -568,11 +662,58 @@
               }
             ]
           }
+        },
+        {
+          "id": "verify_brand_auto_created",
+          "description": "Verify a Brand record was auto-created by the workflow with correct client_name_sync",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/0-970/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "buyer_name",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Northfield"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "buyer_name",
+                "client_name_sync",
+                "hs_pipeline",
+                "hs_pipeline_stage",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "hs_createdate", "direction": "DESCENDING"}]
+            },
+            "capture": {
+              "brand_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "buyer_name", "operator": "contains", "value": "Northfield" },
+              { "field": "client_name_sync", "operator": "eq", "value": "GLUG!" },
+              {
+                "field": "associations",
+                "operator": "associated_to",
+                "object_type": "deals",
+                "value": "{deal_id}"
+              }
+            ]
+          }
         }
       ],
       "teardown": {
-        "description": "Remove test deal and company",
+        "description": "Remove test brand, deal, and company (brand first, then parent records)",
         "api_calls": [
+          {
+            "id": "delete_brand",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/0-970/{brand_id}"
+          },
           {
             "id": "delete_deal",
             "method": "DELETE",

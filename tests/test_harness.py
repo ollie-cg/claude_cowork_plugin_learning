@@ -568,6 +568,7 @@ _TEARDOWN_FALLBACK_MAP = {
     "delete_deal": ("deals", "dealname", "[TEST]"),
     "delete_note": ("notes", "hs_note_body", "[TEST]"),
     "delete_call": ("calls", "hs_call_title", "[TEST]"),
+    "delete_brand": ("0-970", "buyer_name", "[TEST]"),
 }
 
 
@@ -601,6 +602,7 @@ def _fallback_teardown(
         "deals": "dealname",
         "notes": "hs_note_body",
         "calls": "hs_call_title",
+        "0-970": "buyer_name",
     }
     search_field = search_field_map.get(object_type, "name")
 
@@ -806,7 +808,7 @@ def main():
 
         # Pre-tier cleanup: delete any lingering [TEST] records from previous runs
         print(f"\n  Pre-cleanup: searching for stale [TEST] records...")
-        for obj_type, field in [("calls", "hs_call_title"), ("notes", "hs_note_body"), ("deals", "dealname"), ("contacts", "email"), ("companies", "name")]:
+        for obj_type, field in [("calls", "hs_call_title"), ("notes", "hs_note_body"), ("0-970", "buyer_name"), ("deals", "dealname"), ("contacts", "email"), ("companies", "name")]:
             search_body = {
                 "filterGroups": [{"filters": [{"propertyName": field, "operator": "CONTAINS_TOKEN", "value": "TEST"}]}],
                 "properties": [field],
