@@ -161,9 +161,9 @@ Key response fields:
 - `enrollmentCriteria` — trigger conditions
 - `dataSources` — fetched associated objects available to the flow
 
-See [hubspot-system-guide.md](./archived/hubspot-system-guide.md) for full documentation of all 30 workflows.
+See [hubspot-system-guide.md](./hubspot-system-guide.md) for full documentation of all 30 workflows.
 
 ## Related documentation
 
-- [hubspot-system-guide.md](./archived/hubspot-system-guide.md) — Data model, entity relationships, automations, and how operators use the system
+- [hubspot-system-guide.md](./hubspot-system-guide.md) — Data model, entity relationships, automations, and how operators use the system
 - [hubspot-framework-testing-process.md](./archived/hubspot-framework-testing-process.md) — Test harness for measuring LLM understanding of the HubSpot environment
