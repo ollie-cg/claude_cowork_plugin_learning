@@ -1,7 +1,4 @@
 
-# Environment variables (contains secrets)
-.env
-
 # HubSpot config file
 hubspot.config.yml
 
