@@ -726,6 +726,211 @@
           }
         ]
       }
+    },
+    {
+      "id": "brand.update",
+      "category": "brand_management",
+      "name": "Create a deal, then update the auto-created Brand with operator fields",
+      "trigger": "Operator needs to enrich a Brand record with status and description after it has been auto-created",
+      "prompt": "Create a new company called '[TEST] Oakwood Deli Chain'. They are a food-service business based in Bristol, United Kingdom. Their domain is testoakwooddeli.com.\n\nThen create a buyer deal called '[TEST] Oakwood Deli Chain - New Deal' in the Buyer Deal Pipeline at the Discovery stage. Associate the deal to the company. Associate the deal with the GLUG! client service so that a Brand record is auto-created.\n\nWait a few seconds for the Brand to be created by the workflow, then find the Brand record that was auto-created for this deal.\n\nOnce you have the Brand record, update it with the following:\n- Set hs_description to: 'Initial outreach to Oakwood — they run 12 deli sites across the South West. Key contact is Sarah Miles, Head of Procurement. Interested in chilled drinks for their grab-and-go counters.'\n- Set hs_status to: On Track\n\nConfirm the Brand was updated successfully by reading it back.",
+      "actions": [
+        {
+          "id": "create_company",
+          "description": "Create the buyer company",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/companies/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "domain",
+                      "operator": "EQ",
+                      "value": "testoakwooddeli.com"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "name",
+                "domain",
+                "city",
+                "country",
+                "createdate"
+              ]
+            },
+            "capture": {
+              "company_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "name", "operator": "contains", "value": "Oakwood Deli Chain" },
+              { "field": "domain", "operator": "eq", "value": "testoakwooddeli.com" },
+              { "field": "city", "operator": "eq", "value": "Bristol" },
+              { "field": "country", "operator": "eq", "value": "United Kingdom" }
+            ]
+          }
+        },
+        {
+          "id": "create_deal_and_associate",
+          "description": "Create a buyer deal in the Buyer Deal Pipeline at Discovery and associate to the company with GLUG! client service",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/deals/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "dealname",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Oakwood"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "dealname",
+                "pipeline",
+                "dealstage",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "createdate", "direction": "DESCENDING"}]
+            },
+            "capture": {
+              "deal_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "dealname", "operator": "contains", "value": "Oakwood Deli Chain" },
+              { "field": "pipeline", "operator": "eq", "value": "2760762586" },
+              { "field": "dealstage", "operator": "eq", "value": "4443390193" },
+              {
+                "field": "associations",
+                "operator": "associated_to",
+                "object_type": "companies",
+                "value": "{company_id}"
+              }
+            ]
+          }
+        },
+        {
+          "id": "verify_brand_auto_created",
+          "description": "Verify a Brand record was auto-created by the workflow with correct client_name_sync",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/0-970/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "buyer_name",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Oakwood"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "buyer_name",
+                "client_name_sync",
+                "hs_pipeline",
+                "hs_pipeline_stage",
+                "hs_description",
+                "hs_status",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "hs_createdate", "direction": "DESCENDING"}]
+            },
+            "capture": {
+              "brand_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "buyer_name", "operator": "contains", "value": "Oakwood Deli Chain" },
+              { "field": "client_name_sync", "operator": "eq", "value": "GLUG!" }
+            ]
+          }
+        },
+        {
+          "id": "verify_brand_description_updated",
+          "description": "Verify the Brand hs_description was updated with the pitch campaign notes",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/0-970/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "buyer_name",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Oakwood"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "hs_description",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "hs_createdate", "direction": "DESCENDING"}]
+            },
+            "assertions": [
+              { "field": "hs_description", "operator": "contains", "value": "Oakwood" },
+              { "field": "hs_description", "operator": "contains", "value": "grab-and-go" }
+            ]
+          }
+        },
+        {
+          "id": "verify_brand_status_updated",
+          "description": "Verify the Brand hs_status was set to on_track",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/0-970/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "buyer_name",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Oakwood"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "hs_status",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "hs_createdate", "direction": "DESCENDING"}]
+            },
+            "assertions": [
+              { "field": "hs_status", "operator": "eq", "value": "on_track" }
+            ]
+          }
+        }
+      ],
+      "teardown": {
+        "description": "Remove test brand, deal, and company (brand first, then parent records)",
+        "api_calls": [
+          {
+            "id": "delete_brand",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/0-970/{brand_id}"
+          },
+          {
+            "id": "delete_deal",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/deals/{deal_id}"
+          },
+          {
+            "id": "delete_company",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/companies/{company_id}"
+          }
+        ]
+      }
     }
   ]
 }

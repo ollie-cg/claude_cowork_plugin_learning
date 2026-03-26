@@ -126,8 +126,8 @@ Discovery, Won, Lost, and No Response do NOT cascade.
 
 **Operator fields (available for manual entry — currently unfilled across all records):**
 - `hubspot_owner_id` — who owns this buyer relationship
-- `hs_status` — On Track / Delayed / Blocked / Completed / On-Hold / At-Risk
-- `hs_priority` — Low / Medium / High
+- `hs_status` — API values: `on_track` / `delayed` / `blocked` / `completed` / `on_hold` / `at_risk`
+- `hs_priority` — API values: `low` / `medium` / `high`
 - `hs_type` — Service / Service - Onboarding / Marketing / Sales / Internal Ops
 - `hs_description` — notes on the pitch campaign
 - `hs_start_date` — when pitch work began
@@ -179,7 +179,7 @@ Discovery, Won, Lost, and No Response do NOT cascade.
 | "The `amount` field will have financial data" | Null everywhere. State the data isn't available. |
 | "I'll create the deal without a Client Service" | Deal will have no Brands. Always associate at least one Client Service (`0-162`) using association type `795`. |
 | "Product Pitches are created when the Brand is created" | No. They're created when the Brand reaches **Proposal** stage (`4447561936`), which happens when the Deal reaches Feedback Received. |
-| "I'll set `hs_status` or `hs_priority` on the Brand" | These fields exist but are **never filled** by the team. Don't assume they have values — they'll be null. |
+| "I'll set `hs_status` or `hs_priority` on the Brand" | These fields exist but are **never filled** by the team. Don't assume they have values — they'll be null. When setting them via API, use **lowercase** values (e.g. `on_track`, not `On Track`). |
 | "I'll use the real estate fields on Product Pitch" | `hs_bedrooms`, `hs_address_1`, etc. are inherited junk from the native Listing type. Ignore them. |
 
 ## Buyer Deal Creation Recipe
