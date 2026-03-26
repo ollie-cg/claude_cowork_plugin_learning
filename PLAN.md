@@ -63,14 +63,61 @@ Harness updates made for this process:
 - Fallback teardown map extended with `notes` and `calls` object types
 - Teardown order: engagements first (calls, notes), then parent records (deals, companies)
 
-**Workflows still to define** (these will test where the skill actually matters — custom objects, specific pipelines, data quality traps):
+**Process defined: `buyer.pipeline_progression`** — Moves a deal through every stage of the Buyer Deal Pipeline. 5 verification actions:
 
-- **Brand workflows** — Create Brand record (custom object `0-970`), track through pipeline
-- **Product operations** — Create Product Pitch (`0-420`), link to Brand and Client Product
-- **Pipeline progression** — Move a buyer deal through stages (Discovery → Follow Up → Won)
-- **Data quality checks** — Queries that hit known traps (broken rollups, null amounts, duplicate Brands)
+1. **Create company** — Set up buyer company
+2. **Create buyer deal and associate** — Deal at Discovery with GLUG! client service
+3. **Verify final stage is Won** — Deal reached Won stage and is marked closed-won
+4. **Verify all stages entered** — Every stage has a `date_entered` timestamp (Discovery through Won)
+5. **Verify stages in order** — Timestamps are chronological (no skipped stages)
 
-The skill proves its value on workflows involving custom objects and known data quality issues — that's where Tier A should fail and Tier B should pass.
+Also verifies Brand auto-creation. Both tiers pass — pipeline progression uses standard deal objects, though the stage cascade to Brand exercises custom object awareness indirectly.
+
+**Process defined: `brand.update`** — Creates a deal, waits for Brand auto-creation, then updates operator fields on the Brand. 5 verification actions:
+
+1. **Create company** — Set up buyer company
+2. **Create buyer deal and associate** — Deal at Discovery with GLUG! client service
+3. **Verify Brand auto-created** — Brand exists with correct `client_name_sync`
+4. **Verify Brand description updated** — `hs_description` contains expected text
+5. **Verify Brand status updated** — `hs_status` set to `on_track`
+
+This is the first test involving a custom object (`0-970`), but Brand updates are simpler than Product Pitch operations since the Brand is directly searchable by `buyer_name`.
+
+**Process defined: `pitch.update`** — The most complex workflow and the first where the skill clearly differentiates Tier A from Tier B. 5 verification actions across 4 object types:
+
+1. **Create company** — `[TEST] Birchwood Market` in Edinburgh
+2. **Create buyer deal and associate** — Deal at Discovery with MOJU client service (association type `795`)
+3. **Verify Brand at Proposal** — Brand auto-created and cascaded to Proposal stage (`4447561936`) after deal reached Feedback Received — confirms the automation chain worked and Product Pitch creation was triggered
+4. **Verify pitch fields updated** — A Product Pitch (`0-420`) has `amount` = 1250.00, `hs_price` = 2.49, `misc_notes` and `reason` set. Found via `HAS_PROPERTY` filter on `reason` (only the updated pitch has it)
+5. **Verify pitch moved to Negotiation** — A different Product Pitch is at Negotiation stage (`4549842107`) with `amount` = 875.00 and `misc_notes` set. Found via `hs_pipeline_stage` EQ filter
+
+The prompt instructs Claude to orchestrate the full automation chain: create deal → wait for Brand → progress deal through Follow Up → Feedback Pending → Feedback Received (which cascades Brand to Proposal, triggering Product Pitch creation) → wait for pitches → find them via Brand associations → update two pitches with different field combinations.
+
+Test results (2026-03-26, run `1025`/`1034`):
+
+| Tier | Result | Time | Actions |
+|------|--------|------|---------|
+| A (no skill) | FAIL | 479.3s | 2/5 |
+| B (with skill) | PASS | 167.3s | 5/5 |
+
+**This is the first test where the skill proves essential.** Tier A fails because Claude cannot discover the numeric custom object IDs (`0-420`, `0-970`, `0-162`) via the API — name-based paths like `/crm/v3/objects/product_pitch` return "Invalid object type" errors, and `/crm/v3/schemas` returns empty. Claude spends 479s exploring the API and eventually gives up, concluding the token lacks permissions. Tier B uses the skill's object ID table immediately and completes in 167s — 3x faster.
+
+Key skill knowledge exercised:
+- Iron Law #1: numeric objectTypeIds for custom objects
+- Product Pitch Pipeline stage IDs (Negotiation = `4549842107`)
+- Automation chain: Deal → Feedback Received → Brand → Proposal → Product Pitches
+- Client Service association type `795` for deal creation
+- Association path for finding pitches: `0-970/{id}/associations/0-420`
+
+Harness updates made for this process:
+- Added `--yes` flag to skip interactive confirmation prompt
+- Pre-cleanup loop now includes `0-420` (by `hs_name`)
+- Fallback teardown map extended with `0-420` object type
+- Teardown order: pitches first (captured IDs + fallback for remaining), then brand, then deal, then company
+
+**Workflows still to define:**
+
+- **Data quality checks** — Queries that hit known traps (broken `products_placed` rollup, null amounts, duplicate Brands)
 
 ### Phase 2 — Refactor the skill (transport-agnostic)
 
@@ -121,6 +168,7 @@ python3 tests/test_harness.py                              # Run all
 python3 tests/test_harness.py --process buyer.onboard      # Run one
 python3 tests/test_harness.py --tier A                     # Single tier
 python3 tests/test_harness.py --dry-run                    # Preview only
+python3 tests/test_harness.py --yes                        # Skip confirmation
 ```
 
 ### Phase 4 — Run tests, iterate on the skill
