@@ -602,6 +602,7 @@ def _fallback_teardown(
         "deals": "dealname",
         "notes": "hs_note_body",
         "calls": "hs_call_title",
+        "0-420": "hs_name",
         "0-970": "buyer_name",
     }
     search_field = search_field_map.get(object_type, "name")
@@ -724,6 +725,11 @@ def main():
         action="store_true",
         help="Preview what would run without executing",
     )
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="Skip confirmation prompt",
+    )
     args = parser.parse_args()
 
     # --- Check environment ---
@@ -791,12 +797,13 @@ def main():
         return
 
     # Confirm before running
-    print(f"\nPress Enter to start, or Ctrl+C to cancel...")
-    try:
-        input()
-    except KeyboardInterrupt:
-        print("\nCancelled.")
-        sys.exit(0)
+    if not args.yes:
+        print(f"\nPress Enter to start, or Ctrl+C to cancel...")
+        try:
+            input()
+        except KeyboardInterrupt:
+            print("\nCancelled.")
+            sys.exit(0)
 
     # --- Run tests ---
     summary = []
@@ -808,7 +815,7 @@ def main():
 
         # Pre-tier cleanup: delete any lingering [TEST] records from previous runs
         print(f"\n  Pre-cleanup: searching for stale [TEST] records...")
-        for obj_type, field in [("calls", "hs_call_title"), ("notes", "hs_note_body"), ("0-970", "buyer_name"), ("deals", "dealname"), ("contacts", "email"), ("companies", "name")]:
+        for obj_type, field in [("calls", "hs_call_title"), ("notes", "hs_note_body"), ("0-420", "hs_name"), ("0-970", "buyer_name"), ("deals", "dealname"), ("contacts", "email"), ("companies", "name")]:
             search_body = {
                 "filterGroups": [{"filters": [{"propertyName": field, "operator": "CONTAINS_TOKEN", "value": "TEST"}]}],
                 "properties": [field],

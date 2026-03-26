@@ -931,6 +931,261 @@
           }
         ]
       }
+    },
+    {
+      "id": "pitch.update",
+      "category": "product_pitch_management",
+      "name": "Create a deal, progress through pipeline to generate Product Pitches, then update two pitches with operator fields",
+      "trigger": "Operator needs to update Product Pitch records with pricing, notes, and stage progression after reviewing auto-created pitches",
+      "prompt": "Create a new company called '[TEST] Birchwood Market'. They are a grocery retailer based in Edinburgh, United Kingdom. Their domain is testbirchwoodmarket.com.\n\nThen create a buyer deal called '[TEST] Birchwood Market - Pitch Test' in the Buyer Deal Pipeline at the Discovery stage. Associate the deal to the company. Associate the deal with the MOJU client service so that a Brand record is auto-created.\n\nWait a few seconds for the Brand to be auto-created by the workflow, then find the Brand record that was created for this deal.\n\nNow move the deal through the pipeline stages in order: Follow Up, then Feedback Pending, then Feedback Received. Wait a couple of seconds between each move. When the deal reaches Feedback Received, the Brand will cascade to the Proposal stage, which triggers automatic creation of Product Pitch records — one per Client Product.\n\nWait about 15 seconds for the Product Pitches to be created, then find them by looking at the Brand's associations to Product Pitch records.\n\nPick one Product Pitch and update it with the following:\n- Set amount to: 1250.00\n- Set hs_price to: 2.49\n- Set misc_notes to: '[TEST] Buyer interested in functional shots for their health food aisle. Initial order of 500 units proposed. Delivery to Edinburgh warehouse.'\n- Set reason to: 'Strong demand for functional shots in Scottish health food market'\n\nPick a different Product Pitch and:\n- Move it to the Negotiation stage in the Product Pitch Pipeline\n- Set amount to: 875.00\n- Set misc_notes to: '[TEST] Product well received at tasting session. Buyer wants to trial in 3 stores before full rollout across the estate.'\n\nConfirm both updates by reading the records back.",
+      "actions": [
+        {
+          "id": "create_company",
+          "description": "Create the buyer company",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/companies/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "domain",
+                      "operator": "EQ",
+                      "value": "testbirchwoodmarket.com"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "name",
+                "domain",
+                "city",
+                "country",
+                "createdate"
+              ]
+            },
+            "capture": {
+              "company_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "name", "operator": "contains", "value": "Birchwood Market" },
+              { "field": "domain", "operator": "eq", "value": "testbirchwoodmarket.com" },
+              { "field": "city", "operator": "eq", "value": "Edinburgh" },
+              { "field": "country", "operator": "eq", "value": "United Kingdom" }
+            ]
+          }
+        },
+        {
+          "id": "create_deal_and_associate",
+          "description": "Create a buyer deal in the Buyer Deal Pipeline at Discovery and associate to the company with MOJU client service",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/deals/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "dealname",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Birchwood"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "dealname",
+                "pipeline",
+                "dealstage",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "createdate", "direction": "DESCENDING"}]
+            },
+            "capture": {
+              "deal_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "dealname", "operator": "contains", "value": "Birchwood Market" },
+              { "field": "pipeline", "operator": "eq", "value": "2760762586" },
+              {
+                "field": "associations",
+                "operator": "associated_to",
+                "object_type": "companies",
+                "value": "{company_id}"
+              }
+            ]
+          }
+        },
+        {
+          "id": "verify_brand_at_proposal",
+          "description": "Verify a Brand record was auto-created and cascaded to Proposal stage (triggering Product Pitch creation)",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/0-970/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "buyer_name",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Birchwood"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "buyer_name",
+                "client_name_sync",
+                "hs_pipeline",
+                "hs_pipeline_stage",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "hs_createdate", "direction": "DESCENDING"}]
+            },
+            "capture": {
+              "brand_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "buyer_name", "operator": "contains", "value": "Birchwood Market" },
+              { "field": "client_name_sync", "operator": "eq", "value": "MOJU" },
+              { "field": "hs_pipeline_stage", "operator": "eq", "value": "4447561936" },
+              {
+                "field": "associations",
+                "operator": "associated_to",
+                "object_type": "deals",
+                "value": "{deal_id}"
+              }
+            ]
+          }
+        },
+        {
+          "id": "verify_pitch_fields_updated",
+          "description": "Verify a Product Pitch was updated with amount, price, notes, and reason",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/0-420/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "hs_name",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Birchwood"
+                    },
+                    {
+                      "propertyName": "reason",
+                      "operator": "HAS_PROPERTY"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "hs_name",
+                "amount",
+                "hs_price",
+                "misc_notes",
+                "reason",
+                "hs_pipeline_stage",
+                "client_name_sync",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "hs_createdate", "direction": "DESCENDING"}]
+            },
+            "capture": {
+              "pitch_1_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "amount", "operator": "eq", "value": "1250.00" },
+              { "field": "hs_price", "operator": "eq", "value": "2.49" },
+              { "field": "misc_notes", "operator": "contains", "value": "Edinburgh warehouse" },
+              { "field": "reason", "operator": "contains", "value": "Scottish health food market" },
+              { "field": "client_name_sync", "operator": "eq", "value": "MOJU" }
+            ]
+          }
+        },
+        {
+          "id": "verify_pitch_moved_to_negotiation",
+          "description": "Verify a Product Pitch was moved to Negotiation stage and updated with amount and notes",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/0-420/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "hs_name",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Birchwood"
+                    },
+                    {
+                      "propertyName": "hs_pipeline_stage",
+                      "operator": "EQ",
+                      "value": "4549842107"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "hs_name",
+                "amount",
+                "misc_notes",
+                "hs_pipeline_stage",
+                "client_name_sync",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "hs_createdate", "direction": "DESCENDING"}]
+            },
+            "capture": {
+              "pitch_2_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "amount", "operator": "eq", "value": "875.00" },
+              { "field": "hs_pipeline_stage", "operator": "eq", "value": "4549842107" },
+              { "field": "misc_notes", "operator": "contains", "value": "trial in 3 stores" },
+              { "field": "client_name_sync", "operator": "eq", "value": "MOJU" }
+            ]
+          }
+        }
+      ],
+      "teardown": {
+        "description": "Remove test product pitches, brand, deal, and company (pitches first via fallback, then brand, then parent records)",
+        "api_calls": [
+          {
+            "id": "delete_pitch_1",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/0-420/{pitch_1_id}"
+          },
+          {
+            "id": "delete_pitch_2",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/0-420/{pitch_2_id}"
+          },
+          {
+            "id": "delete_remaining_pitches",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/0-420/{remaining_pitch_placeholder}"
+          },
+          {
+            "id": "delete_brand",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/0-970/{brand_id}"
+          },
+          {
+            "id": "delete_deal",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/deals/{deal_id}"
+          },
+          {
+            "id": "delete_company",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/companies/{company_id}"
+          }
+        ]
+      }
     }
   ]
 }
