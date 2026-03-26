@@ -49,7 +49,7 @@ The Deal entity serves double duty. Two pipelines, two property groups, zero ove
 | **Pipeline** | Client Deal Pipeline (7 stages) | Buyer Deal Pipeline (9 stages) |
 | **Property group** | `client_information` — scope of work, commission, contract file, billing frequency, notice period | `buyer_information` — number of sites, route to market, sample address, brands listed |
 | **Purpose** | Win a new client brand | Develop a buyer relationship |
-| **Result** | Creates a Client Service | Creates Brands and Product Pitches |
+| **Result** | Creates a Client Service | Creates Brands (at Discovery) and Product Pitches (when Brand reaches Proposal) |
 
 Brand sits at the intersection of client and buyer. Each Brand record is named `CLIENT / BUYER [Deal ID]`. It has `client_name_sync` (pulled from the Client Service) and `buyer_name`. Rollup fields aggregate from Product Pitches below it: `products_placed`, `total_number_of_products`, `count_of_closed_products`.
 
@@ -193,13 +193,14 @@ Before the Brand and Product Pitch objects existed, buyer outreach was tracked a
 
 1. Identifies a target buyer
 2. Creates a Deal in the Buyer Deal Pipeline, fills in buyer qualification fields (sites, route to market, customer profile)
-3. A workflow automatically creates Brand records linking the deal to the operator's client brands — named `CLIENT / BUYER [Deal ID]`
-4. The operator creates Product Pitch records under each Brand, selecting which SKUs to propose
-5. They contact the buyer (via email, phone, WhatsApp — outside HubSpot)
-6. They log meetings through HubSpot's calendar integration
-7. They move Deal, Brand, and Product Pitch stages as the pitch progresses
-8. If a product is accepted → Product Pitch moves to "Product Placed"
-9. If the overall brand is accepted → Brand moves to "Won"
+3. A workflow automatically creates Brand records linking the deal to the operator's client brands — named `CLIENT / BUYER [Deal ID]` (~6 seconds)
+4. They contact the buyer (via email, phone, WhatsApp — outside HubSpot)
+5. They log meetings through HubSpot's calendar integration
+6. They move Deal stages as the pitch progresses — Brand stages cascade automatically
+7. When Deal reaches **Feedback Received**, Brand cascades to **Proposal**, and a workflow **auto-creates Product Pitch records** (one per Client Product). This fires once per Brand.
+8. They move Product Pitch stages as individual SKU outcomes become clear
+9. If a product is accepted → Product Pitch moves to "Product Placed"
+10. If the overall brand is accepted → Brand moves to "Won"
 
 **Communication happens outside HubSpot.** Calls (0 records), Communications (0 records), Email object (blocked) — operators use standard email, phone, and WhatsApp. HubSpot is the pipeline tracker and contact database, not the communication platform.
 
@@ -219,8 +220,8 @@ The heaviest data entry happens when a client signs up:
 
 See the full [Automations](#automations--workflows) section below. Summary:
 
-- **Brand record creation** — workflow creates Brand records when a Buyer Deal enters Discovery (one per associated Client Service)
-- **Product Pitch creation** — workflow creates Product Pitches when a Brand moves stage (one per Client Product under the Client Service)
+- **Brand record creation** — workflow creates Brand records when a Buyer Deal enters Discovery (one per associated Client Service). `shouldReEnroll: true` — fires again if deal re-enters Discovery.
+- **Product Pitch creation** — workflow creates Product Pitches when a Brand enters **Proposal stage only** (`4447561936`), not on any stage change. One Product Pitch per Client Product under the Client Service. `shouldReEnroll: false` — fires **once per Brand**.
 - **Product Pitch naming** — auto-set to `PRODUCT / BUYER - CLIENT [ID]` from fetched Brand and Client Product data
 - **Deal ↔ Brand stage sync** — Deal stage changes cascade to associated Brand stages via a mapping table
 - **Cascading loss** — all Product Pitches lost → Brand lost → all Brands lost → Deal lost
@@ -240,7 +241,7 @@ See the full [Automations](#automations--workflows) section below. Summary:
 
 - Deal creation — operators create buyer deals when they identify a target
 - Product spec data entry — 67 fields per Client Product
-- Stage movement — dragging cards on the kanban board
+- Deal stage movement — dragging cards on the kanban board (Brand stages cascade automatically; Product Pitch stages are moved manually)
 - Notes and meeting logging
 - Associating contacts to deals and meetings
 
@@ -312,12 +313,12 @@ Client Deal Closed Won
        └→ MRR and TCV are auto-calculated
 
 Buyer Deal enters Discovery (with Client Service associated)
-  └→ Creates Brand(s) — one per Client Service
+  └→ Creates Brand(s) — one per Client Service (~6 seconds)
        └→ Removes Client Service ↔ Deal link
   └→ Deal stage changes cascade to Brand stages via mapping
 
-Brand moves to a new stage
-  └→ Creates Product Pitches — one per Client Product
+Brand enters Proposal stage (triggered by Deal reaching Feedback Received)
+  └→ Creates Product Pitches — one per Client Product (fires ONCE per Brand, shouldReEnroll: false)
        └→ Associates each Product Pitch to Brand + Client Product
        └→ Product Pitch name auto-set: "PRODUCT / BUYER - CLIENT [ID]"
 
@@ -375,7 +376,7 @@ Deal stale 60 days at Feedback Pending
 
 | Flow | ID | Status | Trigger | Action |
 |------|-----|--------|---------|--------|
-| **Create Product Pitch on Brand Movement** | `3585155261` | ON | Brand changes pipeline stage | **Python script:** gets associated Client Service → gets all Client Products for that service → for each, creates a Product Pitch (`0-420`) named `PRODUCT - SERVICE` at "Proposed" stage in Product Pitch Pipeline, associates Pitch → Brand and Pitch → Client Product |
+| **Create Product Pitch on Brand Movement** | `3585155261` | ON | Brand enters **Proposal stage only** (`4447561936`). `shouldReEnroll: false` — fires once per Brand. | **Python script:** gets associated Client Service → gets all Client Products for that service → for each, creates a Product Pitch (`0-420`) named `PRODUCT - SERVICE` at "Proposed" stage in Product Pitch Pipeline, associates Pitch → Brand and Pitch → Client Product |
 | **When Product is Placed → Set Brand to Won** | `3615473872` | ON | (Triggered by Product Pitch placement) | Sets Brand stage to Won (`4447561938`) |
 | **When All Brands Lost → Close Buyer Deal** | `3621266653` | ON | Brand enters Lost (`4447561939`) | **Python script:** gets associated Deal, fetches ALL Brands for that Deal, checks if every Brand is at "Lost". If yes: moves Deal to closed stage (`3774636266`) |
 | **Unnamed workflow** | `3585155280` | OFF | — | Empty/disabled |
@@ -407,7 +408,7 @@ Deal stale 60 days at Feedback Pending
 |------|---------|-------------------|
 | Create Brands from Deal in Discovery | Python 3.9 | Creates Brand records, associates to Deal + Service, then removes Service ↔ Deal links |
 | Map Deal Stage to Brand Stage | Python 3.9 | Reads deal stage, looks up mapping, updates all associated Brand stages |
-| Create Product Pitch on Brand Movement | Python 3.9 | Creates Product Pitch records from Client Products, associates to Brand + Client Product |
+| Create Product Pitch on Brand Movement | Python 3.9 | Creates Product Pitch records from Client Products, associates to Brand + Client Product. Triggers on Brand entering Proposal stage only (`shouldReEnroll: false` — once per Brand). |
 | If ALL Products Lost → Update Brand | Python 3.9 | Checks every sibling Product Pitch stage; if all Declined/Discontinued, sets Brand to Lost |
 | When All Brands Lost → Close Deal | Python 3.9 | Checks every sibling Brand stage; if all Lost, closes the Deal |
 | Upsell 90 days after Win | Python 3.9 | Creates Lead with company/contact associations |
@@ -435,7 +436,7 @@ Stages not in this mapping (Discovery, Won, Lost, No Response) do not cascade to
 | Issue | Detail |
 |-------|--------|
 | **Duplicate Brand creation** | The "Create Brands from Deal in Discovery" workflow has `shouldReEnroll: true` and re-enrollment triggers on `dealstage` change. If a deal re-enters Discovery or the stage property is touched, it creates a full new set of Brands without checking for duplicates. This explains the 80-104 minute duplicate cycle observed for MOJU. |
-| **Product Pitches created on every Brand stage move** | "Create Product Pitch on Brand Movement" triggers on any Brand stage change, not just the first. A Brand moving through Pitched → Waiting → Samples Requested creates Product Pitches at each transition. This explains Brands with `total_number_of_products: 221` for services with only a handful of Client Products. |
+| **Product Pitch inflation via duplicate Brands** | "Create Product Pitch on Brand Movement" actually triggers only when a Brand enters Proposal stage (`4447561936`), and `shouldReEnroll: false` means it fires once per Brand. However, Brands with `total_number_of_products: 221` (for services with few Client Products) are explained by duplicate Brand records — each duplicate Brand fires the workflow independently when it reaches Proposal. The Brand duplication workflow (above) is the root cause. |
 | **Off-boarding has two overlapping workflows** | Both "Off Boarding Pipeline Mover" (`3103017203`) and "Time Till Leaving" (`3485716716`) use `agreed_leave_date` for countdowns with similar stage progressions. They may conflict or double-trigger stage changes. |
 | **Notification workflow disabled** | "Notify Client Owner and Charlie" is OFF. Stage changes to Client Services are not being communicated to stakeholders. |
 
@@ -445,7 +446,7 @@ Stages not in this mapping (Discovery, Won, Lost, No Response) do not cascade to
 
 ### Duplicate Brand records
 
-The "Create Brands from Deal in Discovery" workflow (flow `3523907825`) has `shouldReEnroll: true` with re-enrollment triggered by `dealstage` property changes. When a deal's stage is touched — even if it stays at Discovery — the workflow fires again and creates a new full set of Brand records without checking for duplicates. For MOJU alone: Farmer J has 31+ identical records. The root cause is confirmed: the workflow lacks a guard condition ("only create if a Brand doesn't already exist for this client + buyer + deal"). Additionally, the "Create Product Pitch on Brand Movement" workflow (`3585155261`) fires on every Brand stage change, not just the initial creation, which multiplies the duplicates with redundant Product Pitch records.
+The "Create Brands from Deal in Discovery" workflow (flow `3523907825`) has `shouldReEnroll: true` with re-enrollment triggered by `dealstage` property changes. When a deal's stage is touched — even if it stays at Discovery — the workflow fires again and creates a new full set of Brand records without checking for duplicates. For MOJU alone: Farmer J has 31+ identical records. The root cause is confirmed: the workflow lacks a guard condition ("only create if a Brand doesn't already exist for this client + buyer + deal"). Each duplicate Brand then independently triggers the Product Pitch creation workflow when it reaches Proposal stage, multiplying Product Pitch records.
 
 ### Products placed = 0 everywhere
 
@@ -501,3 +502,31 @@ Before Brand and Product Pitch objects existed, buyer outreach was tracked in cl
 | **Volume/quantity** | No field for "how many cases" or "how many sites" on any pitch or placement |
 | **Competitive intelligence** | Only `brands_listed_in_customer` (free text on Deals). No structured competitor tracking |
 | **Client vs buyer distinction on Companies** | No field on Company says which side it's on. Inferred from associations only |
+
+---
+
+## Brand and Product Pitch field usage
+
+Both Brand (`0-970`) and Product Pitch (`0-420`) are repurposed native HubSpot types (Project and Listing respectively). They inherit fields from those native types that are not relevant to PluginBrands. As of March 2026, the team fills in almost none of the optional fields on either object.
+
+### Brand fields
+
+**Auto-populated by workflows:**
+`hs_name`, `client_name_sync`, `buyer_name`, `hs_pipeline`, `hs_pipeline_stage`, `hs_close_date`, `total_number_of_products`, `count_of_closed_products`, `products_placed` (broken), `amount` (null), `closed_matching`.
+
+**Available but not used by the team (empty across all sampled Won, Lost, and open records):**
+`hubspot_owner_id`, `hs_status` (On Track/Delayed/Blocked/Completed/On-Hold/At-Risk), `hs_priority` (Low/Medium/High), `hs_type` (Service/Marketing/Sales/Internal Ops), `hs_description`, `hs_start_date`, `hs_target_due_date`, `hs_total_cost`, `hs_amount_paid`, `hs_amount_remaining`.
+
+**Inherited from native Project type (irrelevant):**
+`hs_internal_onboarding_goal`, `hs_onboarding_customer_goal`, `hs_onboarding_risks_and_blockers`, `hs_onboarding_success_metrics`.
+
+### Product Pitch fields
+
+**Auto-populated by workflows:**
+`hs_name`, `client_name_sync`, `hs_pipeline`, `hs_pipeline_stage`, `is_closed`.
+
+**Available but not used by the team (empty across all sampled Placed, Declined, and open records):**
+`hubspot_owner_id`, `amount` (only 1 of 11 Placed pitches has a value), `hs_price`, `misc_notes`, `reason`.
+
+**Inherited from native Listing type (irrelevant — real estate fields):**
+`hs_address_1/2`, `hs_city`, `hs_state_province`, `hs_zip`, `hs_bedrooms`, `hs_bathrooms`, `hs_square_footage`, `hs_lot_size`, `hs_year_built`, `hs_neighborhood`. `hs_listing_type` is relabelled "Product Pitch Type" but its dropdown options are still housing types (House, Townhouse, Multi-Family, etc.).

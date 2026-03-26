@@ -21,7 +21,7 @@ PluginBrands is an outsourced commercial team for consumer brands. Brands pay a 
 Company ←→ Contact                      (shared — no client/buyer flag)
     ├── Deal (two types)
     │     ├── Client Deal → wins a client → creates Client Service
-    │     └── Buyer Deal  → sells to buyer → creates Brands + Product Pitches
+    │     └── Buyer Deal  → sells to buyer → creates Brands (at Discovery) + Product Pitches (at Feedback Received)
     │           └── Brand (one client × one buyer, e.g. "MOJU / Farmer J")
     │                 └── Product Pitch (one SKU × one buyer)
     ├── Client Service (contract with client — 16-stage lifecycle)
@@ -61,19 +61,100 @@ These are repurposed native HubSpot types. `/crm/v3/schemas` returns empty. Name
 
 **Product Pitch Pipeline** (`fdeea9a0-8d7e-4f9b-97b6-ca9a587eee87`): Proposed → Negotiation → Product Placed → Declined → Discontinued
 
+## Automation Chain — What Happens Automatically
+
+**Brand creation** (workflow `3523907825`, `shouldReEnroll: true`):
+- Trigger: Deal enters Discovery stage (`4443390193`)
+- Action: Creates one Brand (`0-970`) per associated Client Service, at "Brand Pitched" stage. Then **removes** the Client Service association from the Deal.
+- Timing: ~6 seconds after deal creation.
+
+**Deal → Brand stage cascade** (workflow `3540255935`):
+- Trigger: Deal stage changes
+- Mapping (only these four stages cascade):
+
+| Deal Stage | Deal Stage ID | → Brand Stage | Brand Stage ID |
+|-----------|---------------|---------------|----------------|
+| Follow Up | `4443390195` | Waiting | `4447561934` |
+| Feedback Pending | `4443390196` | Samples Requested | `4447561935` |
+| Feedback Received | `4443390197` | **Proposal** | `4447561936` |
+| Proposal | `4443390198` | Waiting for Feedback | `4447561937` |
+
+Discovery, Won, Lost, and No Response do NOT cascade.
+
+**Product Pitch creation** (workflow `3585155261`, `shouldReEnroll: false`):
+- Trigger: Brand enters **Proposal stage only** (`4447561936`) — NOT any stage change.
+- Action: Gets associated Client Service → gets all Client Products → creates one Product Pitch (`0-420`) per Client Product at "Proposed" stage.
+- Fires **once per Brand** (re-enrollment disabled). Subsequent stage changes do not create more pitches.
+- This means Product Pitches appear when the Deal reaches **Feedback Received**, which cascades the Brand to Proposal.
+
+**Product Pitch naming** (workflow `3585155320`):
+- Trigger: Product Pitch created/updated
+- Sets `hs_name` to `PRODUCT / BUYER - CLIENT [ID]` and syncs `client_name_sync` from Brand.
+
+**Cascading outcomes:**
+- Product Pitch → Product Placed → Brand → Won → Deal → Won
+- All Product Pitches → Declined/Discontinued → Brand → Lost → All Brands Lost → Deal → Lost
+
 ## How Operators Work
 
-1. Create Buyer Deal → workflow **auto-creates Brand records** (one per client brand)
-2. Operator creates Product Pitch records under each Brand (selects SKUs)
-3. Communication happens **outside HubSpot** (email, phone, WhatsApp — Calls=0, Emails=blocked)
-4. Meetings logged via calendar sync (1,070 records). Notes (114) and Tasks (117) barely used
-5. Move Deal/Brand/Product Pitch stages as pitch progresses
-6. Brand → "Won" when buyer accepts the brand; Product Pitch → "Product Placed" when SKU lands
+1. Create Buyer Deal at Discovery → workflow **auto-creates Brand records** (~6 seconds)
+2. Move Deal through stages — Brand stage cascades automatically
+3. When Deal reaches **Feedback Received** → Brand reaches **Proposal** → **Product Pitches auto-created** (one per Client Product)
+4. Communication happens **outside HubSpot** (email, phone, WhatsApp — Calls=0, Emails=blocked)
+5. Meetings logged via calendar sync (1,070 records). Notes (114) and Tasks (117) barely used
+6. Move Deal/Brand/Product Pitch stages as pitch progresses
+7. Product Pitch → "Product Placed" when SKU lands; Brand → "Won" when buyer accepts the brand
 
 ## Field Value Standards
 
 - **Country:** Always use the full name `"United Kingdom"`, never abbreviations like `"UK"` or `"GB"`. HubSpot stores countries as full names.
 - **`buyer` on Deals:** This is a **calculated read-only field**. It auto-populates from the associated company name. Do NOT set it when creating a deal — the API will reject it.
+
+## Brand Fields (`0-970`)
+
+**Auto-populated (do not set manually):**
+- `hs_name` — `CLIENT / BUYER [Deal ID]` (set by workflow)
+- `client_name_sync` — synced from Client Service name (read-only calculated)
+- `buyer_name` — from deal name (read-only calculated, sometimes empty — workflow bug)
+- `hs_pipeline` / `hs_pipeline_stage` — set by workflow, cascaded from Deal stage
+- `hs_close_date` — auto-set when stage moves to Won/Lost
+- `total_number_of_products` — rollup from associated Product Pitches (read-only calculated)
+- `count_of_closed_products` — rollup (read-only calculated)
+- `products_placed` — rollup (read-only calculated, **broken — always 0**)
+- `amount` — rollup (read-only calculated, **null everywhere**)
+- `closed_matching` — calculated (read-only)
+
+**Operator fields (available for manual entry — currently unfilled across all records):**
+- `hubspot_owner_id` — who owns this buyer relationship
+- `hs_status` — On Track / Delayed / Blocked / Completed / On-Hold / At-Risk
+- `hs_priority` — Low / Medium / High
+- `hs_type` — Service / Service - Onboarding / Marketing / Sales / Internal Ops
+- `hs_description` — notes on the pitch campaign
+- `hs_start_date` — when pitch work began
+- `hs_target_due_date` — target close date
+- `hs_total_cost` — monetary value of the pitch/win
+- `hs_amount_paid` / `hs_amount_remaining` — payment tracking
+
+**Inherited from native Project type (not relevant):**
+`hs_internal_onboarding_goal`, `hs_onboarding_customer_goal`, `hs_onboarding_risks_and_blockers`, `hs_onboarding_success_metrics` — ignore these.
+
+## Product Pitch Fields (`0-420`)
+
+**Auto-populated (do not set manually):**
+- `hs_name` — `PRODUCT / BUYER - CLIENT [ID]` (set by naming workflow)
+- `client_name_sync` — synced from Brand (set by naming workflow)
+- `hs_pipeline` / `hs_pipeline_stage` — created at Proposed stage by workflow
+- `is_closed` — calculated
+
+**Operator fields (available for manual entry — currently unfilled across nearly all records):**
+- `hubspot_owner_id` — who is working this pitch
+- `amount` — value of this placement (only 1 of 11 Placed pitches has a value)
+- `hs_price` — price
+- `misc_notes` — notes about the pitch/negotiation
+- `reason` — why the pitch was declined or placed (important for pattern recognition)
+
+**Inherited from native Listing type (not relevant — these are real estate fields):**
+`hs_address_1/2`, `hs_city`, `hs_state_province`, `hs_zip`, `hs_bedrooms`, `hs_bathrooms`, `hs_square_footage`, `hs_lot_size`, `hs_year_built`, `hs_neighborhood` — ignore these. `hs_listing_type` is relabelled "Product Pitch Type" but its options are still housing types (House, Townhouse, etc.) — ignore.
 
 ## Known Data Quality Issues — Flag These
 
@@ -97,6 +178,9 @@ These are repurposed native HubSpot types. `/crm/v3/schemas` returns empty. Name
 | "The `products_placed` rollup will have the count" | Broken — always 0. Query Product Pitches directly. |
 | "The `amount` field will have financial data" | Null everywhere. State the data isn't available. |
 | "I'll create the deal without a Client Service" | Deal will have no Brands. Always associate at least one Client Service (`0-162`) using association type `795`. |
+| "Product Pitches are created when the Brand is created" | No. They're created when the Brand reaches **Proposal** stage (`4447561936`), which happens when the Deal reaches Feedback Received. |
+| "I'll set `hs_status` or `hs_priority` on the Brand" | These fields exist but are **never filled** by the team. Don't assume they have values — they'll be null. |
+| "I'll use the real estate fields on Product Pitch" | `hs_bedrooms`, `hs_address_1`, etc. are inherited junk from the native Listing type. Ignore them. |
 
 ## Buyer Deal Creation Recipe
 
