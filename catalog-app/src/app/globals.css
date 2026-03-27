@@ -128,3 +128,26 @@
     @apply font-sans;
   }
 }
+
+/* Custom enhancements */
+.glass-card {
+  background: oklch(0.18 0 0 / 60%);
+  backdrop-filter: blur(12px);
+  border: 1px solid oklch(1 0 0 / 8%);
+}
+
+.glass-card:hover {
+  border-color: oklch(1 0 0 / 15%);
+  background: oklch(0.20 0 0 / 70%);
+}
+
+.glow-sm {
+  box-shadow: 0 0 20px -5px oklch(0.6 0.2 280 / 15%);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, oklch(0.75 0.15 280), oklch(0.7 0.2 250));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

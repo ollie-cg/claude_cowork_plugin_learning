@@ -146,10 +146,10 @@ export function ProductForm({ product, brandId }: ProductFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-3">
       {SECTIONS.map((section) => (
         <Collapsible key={section.title} defaultOpen={section.title === "Identity"}>
-          <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border p-4 font-medium hover:bg-muted/50">
+          <CollapsibleTrigger className="flex w-full items-center justify-between rounded-xl glass-card p-4 font-medium text-sm hover:border-violet-500/20 transition-all">
             {section.title}
           </CollapsibleTrigger>
           <CollapsibleContent className="px-4 pt-4 pb-2">
@@ -187,7 +187,7 @@ export function ProductForm({ product, brandId }: ProductFormProps) {
       ))}
 
       <div className="flex gap-2 pt-4">
-        <Button type="submit" disabled={saving}>
+        <Button type="submit" disabled={saving} className="bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white border-0">
           {saving ? "Saving..." : isEdit ? "Save Changes" : "Create Product"}
         </Button>
         <Button type="button" variant="outline" onClick={() => router.back()}>

@@ -115,3 +115,34 @@ export function getImagesByProduct(db: Database.Database, productId: number): Pr
 export function deleteProductImage(db: Database.Database, id: number): void {
   db.prepare("DELETE FROM product_images WHERE id = ?").run(id);
 }
+
+export function getProductsByIds(db: Database.Database, ids: number[]): ProductWithImages[] {
+  if (ids.length === 0) return [];
+
+  const placeholders = ids.map(() => "?").join(", ");
+  const products = db.prepare(`
+    SELECT p.*, b.name AS brand_name
+    FROM products p
+    JOIN brands b ON b.id = p.brand_id
+    WHERE p.id IN (${placeholders})
+  `).all(...ids) as (Product & { brand_name: string })[];
+
+  const allImages = db.prepare(`
+    SELECT * FROM product_images
+    WHERE product_id IN (${placeholders})
+    ORDER BY sort_order
+  `).all(...ids) as ProductImage[];
+
+  const imagesByProduct = new Map<number, ProductImage[]>();
+  for (const img of allImages) {
+    const list = imagesByProduct.get(img.product_id) || [];
+    list.push(img);
+    imagesByProduct.set(img.product_id, list);
+  }
+
+  const productMap = new Map(products.map(p => [p.id, p]));
+  return ids
+    .map(id => productMap.get(id))
+    .filter((p): p is (Product & { brand_name: string }) => p !== undefined)
+    .map(p => ({ ...p, images: imagesByProduct.get(p.id) || [] }));
+}

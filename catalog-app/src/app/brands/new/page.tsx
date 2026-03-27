@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,34 +39,42 @@ export default function NewBrandPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-lg">
-      <h1 className="text-2xl font-bold mb-6">Add Brand</h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <Label htmlFor="name">Brand Name *</Label>
-          <Input id="name" name="name" required />
-        </div>
-        <div>
-          <Label htmlFor="description">Description</Label>
-          <Textarea id="description" name="description" rows={3} />
-        </div>
-        <div>
-          <Label htmlFor="website">Website</Label>
-          <Input id="website" name="website" type="url" placeholder="https://" />
-        </div>
-        <div>
-          <Label htmlFor="country">Country</Label>
-          <Input id="country" name="country" />
-        </div>
-        <div className="flex gap-2">
-          <Button type="submit" disabled={saving}>
-            {saving ? "Saving..." : "Create Brand"}
-          </Button>
-          <Button type="button" variant="outline" onClick={() => router.back()}>
-            Cancel
-          </Button>
-        </div>
-      </form>
+    <div className="mx-auto max-w-lg px-6 py-10">
+      <Link href="/" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6">
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+        Back
+      </Link>
+
+      <h1 className="text-2xl font-bold tracking-tight mb-6">Add Brand</h1>
+
+      <div className="glass-card rounded-xl p-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <Label htmlFor="name" className="text-sm text-muted-foreground">Brand Name *</Label>
+            <Input id="name" name="name" required className="mt-1.5" />
+          </div>
+          <div>
+            <Label htmlFor="description" className="text-sm text-muted-foreground">Description</Label>
+            <Textarea id="description" name="description" rows={3} className="mt-1.5" />
+          </div>
+          <div>
+            <Label htmlFor="website" className="text-sm text-muted-foreground">Website</Label>
+            <Input id="website" name="website" type="url" placeholder="https://" className="mt-1.5" />
+          </div>
+          <div>
+            <Label htmlFor="country" className="text-sm text-muted-foreground">Country</Label>
+            <Input id="country" name="country" className="mt-1.5" />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button type="submit" disabled={saving} className="bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white border-0">
+              {saving ? "Saving..." : "Create Brand"}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => router.back()}>
+              Cancel
+            </Button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

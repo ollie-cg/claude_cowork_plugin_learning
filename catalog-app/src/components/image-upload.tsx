@@ -96,10 +96,8 @@ export function ImageGallery({ productId, images }: ImageGalleryProps) {
               <SelectItem value="nutritional">Nutritional</SelectItem>
             </SelectContent>
           </Select>
-          <label className="cursor-pointer">
-            <Button variant="outline" render={<span />}>
-              Browse Files
-            </Button>
+          <label className="inline-flex h-8 cursor-pointer items-center justify-center rounded-lg border border-border bg-background px-2.5 text-sm font-medium transition-colors hover:bg-muted hover:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50">
+            Browse Files
             <input
               type="file"
               accept="image/*"
