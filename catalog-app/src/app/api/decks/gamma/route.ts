@@ -7,7 +7,7 @@ import { createGammaDeck, pollGammaGeneration } from "@/lib/gamma-client";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { brand_id, product_ids, prospect_name, message } = body;
+  const { brand_id, product_ids, prospect_name, message, prospect_logo_url } = body;
 
   if (!brand_id) {
     return NextResponse.json(
@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
     prospectName: prospect_name.trim(),
     message: message?.trim() || undefined,
     tunnelUrl,
+    prospectLogoUrl: prospect_logo_url || undefined,
   });
 
   const numCards = 7 + Math.min(products.length, 3);
@@ -64,6 +65,19 @@ export async function POST(request: NextRequest) {
     const { generationId } = await createGammaDeck({
       inputText,
       numCards: Math.min(numCards, 60),
+      themeId: "chimney-dust",
+      cardOptions: {
+        headerFooter: {
+          bottomRight: {
+            type: "image",
+            source: "custom",
+            src: "https://images.squarespace-cdn.com/content/v1/68ff4a2ef01c946f5db3e663/7a6b7512-2654-423e-9357-1f8ca924904a/PluginBrands-white.png",
+            size: "sm",
+          },
+          hideFromFirstCard: true,
+          hideFromLastCard: true,
+        },
+      },
     });
 
     const result = await pollGammaGeneration(generationId);

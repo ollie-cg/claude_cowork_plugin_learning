@@ -1,3 +1,13 @@
+/**
+ * Gamma Input Builder for Catalog App API
+ *
+ * This module builds markdown for the catalog app's API-driven deck generation endpoint
+ * (/api/decks/gamma). It provides a quick deck generation path using catalog data.
+ *
+ * For buyer-tailored decks with HubSpot intelligence and custom narratives, use the
+ * generate-buyer-deck skill which builds markdown directly with buyer-specific insights.
+ */
+
 import type { Brand, ProductWithImages } from "@/types";
 
 interface GammaInputOptions {
@@ -6,6 +16,7 @@ interface GammaInputOptions {
   prospectName: string;
   message?: string;
   tunnelUrl: string;
+  prospectLogoUrl?: string;
 }
 
 const MAX_DEEP_DIVES = 3;
@@ -23,22 +34,29 @@ function getHeroUrl(product: ProductWithImages, tunnelUrl: string): string | nul
 }
 
 export function buildGammaInputText(options: GammaInputOptions): string {
-  const { brand, products, prospectName, message, tunnelUrl } = options;
+  const { brand, products, prospectName, message, tunnelUrl, prospectLogoUrl } = options;
   const slides: string[] = [];
 
-  // Slide 1: Title
-  let titleSlide = `# PluginBrands\n\n## Prepared for ${prospectName}\n\n### ${brand.name}`;
+  const pbLogoUrl = "https://images.squarespace-cdn.com/content/v1/68ff4a2ef01c946f5db3e663/7a6b7512-2654-423e-9357-1f8ca924904a/PluginBrands-white.png";
+
+  // Slide 1: Title with partnership logos
+  let titleSlide = `# Prepared for ${prospectName}\n\n## ${brand.name}`;
   if (message) titleSlide += `\n\n*${message}*`;
+  if (prospectLogoUrl) {
+    titleSlide += `\n\n| Partner Logos |\n|:---:|\n| ![PluginBrands](${pbLogoUrl}) |\n| ![${prospectName}](${prospectLogoUrl}) |`;
+  } else {
+    titleSlide += `\n\n![PluginBrands](${pbLogoUrl})`;
+  }
   slides.push(titleSlide);
 
   // Slide 2: Who We Are
   slides.push(
-    `# Who We Are\n\nWe're a commercial partner for the world's most exciting challenger brands. We handle sales, distribution, and brand building — so great products reach the right shelves.\n\n**50+ Brands** | **3,000+ Retail Doors** | **UK & International**`
+    `# Who We Are\n\n**Plugin Brands** is an outsourced commercial team for consumer brands.\n\nWe partner with innovative food and drink brands to unlock retail distribution across the UK and Europe.\n\n**Our approach:**\n- Dedicated category experts\n- Data-driven pitch strategies\n- Long-term buyer relationships\n- End-to-end sales support\n\nWe don't just open doors — we drive sustainable growth.`
   );
 
   // Slide 3: What We Can Do Together
   slides.push(
-    `# What We Can Do Together\n\n**Sales & Distribution** — National and independent retail coverage with dedicated field sales teams.\n\n**Category Strategy** — Data-driven ranging, pricing, and promotional plans tailored to your stores.\n\n**Marketing Support** — In-store activation, sampling, and digital campaigns that drive rate of sale.\n\n**Brand Building** — Helping challenger brands scale with the operational backbone they need.`
+    `# What We Can Do Together\n\n## Four pillars of partnership:\n\n**1. Category Insight**\nMarket data, consumer trends, and competitive intelligence to position your range for maximum impact.\n\n**2. Tailored Pitching**\nWe know your buyers. Every pitch is crafted to align with their priorities and trading strategies.\n\n**3. Operational Excellence**\nFrom samples to purchase orders, we manage the process so you can focus on product.\n\n**4. Ongoing Support**\nLaunch isn't the finish line. We monitor performance, optimize listings, and identify expansion opportunities.`
   );
 
   // Slide 4: Brand Introduction
@@ -88,7 +106,7 @@ export function buildGammaInputText(options: GammaInputOptions): string {
 
   // Next Steps
   slides.push(
-    `# Next Steps\n\nInterested in stocking ${brand.name}?\n\nWe'd love to discuss how these products can fit into your range.\n\nContact us to arrange a tasting or discuss commercial terms.`
+    `# Next Steps\n\n![PluginBrands](${pbLogoUrl})\n\nInterested in stocking ${brand.name}?\n\nWe'd love to discuss how these products can fit into your range.\n\nContact us to arrange a tasting or discuss commercial terms.`
   );
 
   return slides.join("\n---\n");
