@@ -1,6 +1,13 @@
 
+# macOS
+.DS_Store
+
 # HubSpot config file
 hubspot.config.yml
+
+# SQLite temp files
+*.db-shm
+*.db-wal
 
 # Test results (may contain HubSpot data and tokens)
 docs/archived/test-results/
