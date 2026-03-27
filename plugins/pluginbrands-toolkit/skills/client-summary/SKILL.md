@@ -67,7 +67,7 @@ POST /crm/v3/objects/0-970/search
 }
 ```
 
-Page through results if `paging.next` exists (pass `"after": "VALUE"` in the request body).
+Page through results if `paging.next` exists. Pass the `after` value as an integer in the request body: `"after": 100` (not a string — HubSpot search pagination requires an integer).
 
 ## Step 3: Deduplicate Brands
 
