@@ -39,7 +39,7 @@ Run by asking:
 
 Requires:
 - `hubspot-api-query` skill (active)
-- Gamma MCP server (configured)
+- `GAMMA_API_KEY` environment variable (set)
 - `CATALOG_APP_URL` environment variable (set)
 - Puppeteer MCP tools (optional — for visual QA)
 
@@ -48,7 +48,7 @@ Workflow:
 2. Proposes buyer motives for user validation
 3. Presents brand and product selection from the Catalog App
 4. Crafts a tailored narrative for the deck
-5. Generates via Gamma MCP with `chimney-dust` theme
+5. Generates via Gamma API with `chimney-dust` theme
 6. Runs visual QA with Puppeteer, auto-retries up to 2x if issues found
 
 ## Setup

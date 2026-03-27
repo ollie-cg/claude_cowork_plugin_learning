@@ -13,8 +13,8 @@ Before starting, verify these tools and configurations are available:
 
 **REQUIRED:**
 - **`hubspot-api-query` skill MUST be active** — provides buyer intelligence gathering patterns, object IDs, and HubSpot API access
-- **Gamma MCP server MUST be configured** — verify by checking for `mcp__gamma__generate` tool availability. If missing, fail immediately with clear instructions to configure the Gamma MCP server.
-- **`CATALOG_APP_URL` environment variable MUST be set** — fail early if undefined. This is the base URL for product catalog API calls (e.g., `http://localhost:3000`).
+- **`GAMMA_API_KEY` environment variable MUST be set** — this is your Gamma API key. Generate one from Gamma Account Settings → API Keys. If missing, fail immediately: "GAMMA_API_KEY is not set. Get an API key from your Gamma account settings."
+- **`CATALOG_APP_URL` environment variable MUST be set** — fail early if undefined. This is the base URL for product catalog API calls (e.g., `https://catalog.pluginbrands.com`).
 
 **OPTIONAL:**
 - **Puppeteer MCP tools** — `puppeteer_navigate`, `puppeteer_screenshot`, `puppeteer_evaluate`. If unavailable, skip Step 5 (Visual QA) and proceed without screenshots. Inform the user that QA will be manual.
@@ -553,41 +553,80 @@ Table of ALL selected products:
 
 **Assemble the full markdown:**
 
-Concatenate all slides, separated by `---` (three hyphens on a new line). This is the `text` parameter for Gamma.
+Concatenate all slides, separated by `---` (three hyphens on a new line). This is the `inputText` parameter for the Gamma API.
 
-### 4b. Call Gamma MCP `generate` Tool
+### 4b. Call Gamma API
 
-Use the `mcp__gamma__generate` tool with these **exact parameters**:
+Call the Gamma API directly using curl. The API base URL is `https://public-api.gamma.app/v1.0`.
 
+**Step 1: Create the generation**
+
+```bash
+curl -s -X POST "https://public-api.gamma.app/v1.0/generations" \
+  -H "Content-Type: application/json" \
+  -H "X-API-KEY: $GAMMA_API_KEY" \
+  -d '{
+    "inputText": "{Full markdown from 4a}",
+    "format": "presentation",
+    "textMode": "preserve",
+    "numCards": {7 + min(deep_dive_count, 3)},
+    "themeId": "chimney-dust",
+    "imageOptions": {
+      "source": "noImages"
+    },
+    "cardOptions": {
+      "dimensions": "16x9",
+      "headerFooter": {
+        "bottomRight": {
+          "type": "image",
+          "source": "custom",
+          "src": "https://images.squarespace-cdn.com/content/v1/68ff4a2ef01c946f5db3e663/7a6b7512-2654-423e-9357-1f8ca924904a/PluginBrands-white.png",
+          "size": "sm"
+        },
+        "hideFromFirstCard": true,
+        "hideFromLastCard": true
+      }
+    }
+  }'
+```
+
+This returns a JSON response with a `generationId`:
+```json
+{ "generationId": "abc123", "warnings": null }
+```
+
+**Step 2: Poll for completion**
+
+The generation is asynchronous. Poll every 5 seconds until status is `completed` or `failed`:
+
+```bash
+curl -s "https://public-api.gamma.app/v1.0/generations/{generationId}" \
+  -H "X-API-KEY: $GAMMA_API_KEY"
+```
+
+Response when complete:
 ```json
 {
-  "text": "{Full markdown from 4a}",
-  "format": "presentation",
-  "textMode": "preserve",
-  "numCards": {7 + min(selected_products_count_for_deep_dives, 3)},
-  "themeId": "chimney-dust",
-  "imageOptions": {
-    "source": "noImages"
-  },
-  "cardOptions": {
-    "dimensions": "16x9",
-    "headerFooter": {
-      "bottomRight": {
-        "type": "image",
-        "source": "custom",
-        "src": "{PB_LOGO_URL}",
-        "size": "sm"
-      },
-      "hideFromFirstCard": true,
-      "hideFromLastCard": true
-    }
-  }
+  "generationId": "abc123",
+  "status": "completed",
+  "gammaUrl": "https://gamma.app/docs/...",
+  "gammaId": "...",
+  "exportUrl": null
 }
 ```
 
+Poll up to 60 times (5 minutes). If status is still `pending` after that, report a timeout.
+
+If status is `failed`, report the error from `error.message`.
+
+**Step 3: Return the `gammaUrl` to the user**
+
+The `gammaUrl` is the editable deck link on gamma.app.
+
 **Parameter explanations:**
 
-- **`numCards`**: Always `7 + min(selected_products_count_for_deep_dives, 3)`. This accounts for:
+- **`inputText`**: The full markdown from Step 4a with slides separated by `---`
+- **`numCards`**: Always `7 + min(deep_dive_count, 3)`. This accounts for:
   - Slide 1: Title
   - Slide 2: Who We Are
   - Slide 3: What We Can Do Together
@@ -609,7 +648,7 @@ Use the `mcp__gamma__generate` tool with these **exact parameters**:
 https://images.squarespace-cdn.com/content/v1/68ff4a2ef01c946f5db3e663/7a6b7512-2654-423e-9357-1f8ca924904a/PluginBrands-white.png
 ```
 
-**Do NOT include `exportAs` parameter** unless user explicitly requests PDF or PPTX export. Default is web URL only.
+**Do NOT include `exportAs` parameter** unless user explicitly requests PDF or PPTX export. If they do, add `"exportAs": "pdf"` or `"exportAs": "pptx"` to the request body. The `exportUrl` will be returned in the poll response.
 
 **Maximum `numCards`:** Gamma enforces a limit of 60 cards. If the calculation exceeds this (e.g., if user selects many products), cap at 60 and warn the user.
 
@@ -877,8 +916,11 @@ Handle these scenarios gracefully:
 
 | Scenario | Action |
 |----------|--------|
-| **Gamma MCP not configured** | FAIL immediately. Instruct user: "Gamma MCP server is not configured. Please add the Gamma MCP server to your Claude Code configuration and restart." Provide link to Gamma MCP setup docs if available. |
-| **Puppeteer MCP not available** | Skip Step 5 (Visual QA). Inform user: "Puppeteer MCP not available. Deck will be generated without automated QA. Please review manually in Gamma." Proceed to 5g (Final Output) without screenshots. |
+| **`GAMMA_API_KEY` not set** | FAIL immediately: "GAMMA_API_KEY is not set. Get an API key from your Gamma Account Settings → API Keys." |
+| **Gamma API returns 401** | API key is invalid or expired: "Gamma API authentication failed. Check your GAMMA_API_KEY is correct and not expired." |
+| **Gamma API returns 429** | Rate limited: wait 10 seconds and retry once. If still 429, inform user to try again later. |
+| **Gamma generation times out** | After 60 poll attempts (5 minutes): "Gamma generation timed out. The deck may still be generating — check your Gamma account." |
+| **Puppeteer MCP not available** | Skip Step 5 (Visual QA). Inform user: "Puppeteer not available. Deck generated without automated QA. Please review manually at {gammaUrl}." Proceed to 5g (Final Output) without screenshots. |
 | **Catalog App unreachable** | Test `{CATALOG_APP_URL}/api/brands` at start of Step 2. If unreachable (timeout, 404, 500), FAIL with: "Catalog App at {CATALOG_APP_URL} is unreachable. Please verify the app is running and `CATALOG_APP_URL` is correct." |
 | **HubSpot API errors (401, 403, 429, 500)** | - **401/403**: "HubSpot authentication failed. Check your API token in the `hubspot-api-query` skill configuration."<br>- **429**: "HubSpot rate limit exceeded. Waiting {n} seconds and retrying..."<br>- **500**: "HubSpot API error. Retrying once..." If retry fails, ask user to try again later. |
 | **Gamma generation fails (API error)** | Retry once. If second attempt fails, inform user: "Gamma generation failed after 2 attempts. Error: {error message}. Please check Gamma API status or try again later." |
