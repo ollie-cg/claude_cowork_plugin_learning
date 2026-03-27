@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { deleteProductImage } from "@/lib/queries";
+import { IMAGES_DIR } from "@/lib/paths";
 import fs from "fs";
 import path from "path";
-
-const IMAGES_DIR = path.join(process.cwd(), "data", "images");
 
 export async function DELETE(
   _request: NextRequest,

@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { createProductImage, getImagesByProduct, getProductById } from "@/lib/queries";
+import { IMAGES_DIR } from "@/lib/paths";
 import fs from "fs";
 import path from "path";
-
-const IMAGES_DIR = path.join(process.cwd(), "data", "images");
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

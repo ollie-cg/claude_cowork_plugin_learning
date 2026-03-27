@@ -28,10 +28,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const tunnelUrl = process.env.TUNNEL_URL;
-  if (!tunnelUrl) {
+  const baseUrl = process.env.BASE_URL;
+  if (!baseUrl) {
     return NextResponse.json(
-      { error: "TUNNEL_URL is not configured — start ngrok first" },
+      { error: "BASE_URL is not configured" },
       { status: 400 }
     );
   }
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     products,
     prospectName: prospect_name.trim(),
     message: message?.trim() || undefined,
-    tunnelUrl,
+    baseUrl,
     prospectLogoUrl: prospect_logo_url || undefined,
   });
 

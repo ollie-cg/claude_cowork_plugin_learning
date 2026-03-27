@@ -15,7 +15,7 @@ interface GammaInputOptions {
   products: ProductWithImages[];
   prospectName: string;
   message?: string;
-  tunnelUrl: string;
+  baseUrl: string;
   prospectLogoUrl?: string;
 }
 
@@ -24,17 +24,17 @@ const MAX_DEEP_DIVES = 3;
 const formatPrice = (price: number | null): string =>
   price === null ? "N/A" : `£${price.toFixed(2)}`;
 
-function imageUrl(tunnelUrl: string, filePath: string): string {
-  return `${tunnelUrl}/api/images/${filePath}`;
+function imageUrl(baseUrl: string, filePath: string): string {
+  return `${baseUrl}/api/images/${filePath}`;
 }
 
-function getHeroUrl(product: ProductWithImages, tunnelUrl: string): string | null {
+function getHeroUrl(product: ProductWithImages, baseUrl: string): string | null {
   const hero = product.images.find((img) => img.image_type === "hero");
-  return hero ? imageUrl(tunnelUrl, hero.file_path) : null;
+  return hero ? imageUrl(baseUrl, hero.file_path) : null;
 }
 
 export function buildGammaInputText(options: GammaInputOptions): string {
-  const { brand, products, prospectName, message, tunnelUrl, prospectLogoUrl } = options;
+  const { brand, products, prospectName, message, baseUrl, prospectLogoUrl } = options;
   const slides: string[] = [];
 
   const pbLogoUrl = "https://images.squarespace-cdn.com/content/v1/68ff4a2ef01c946f5db3e663/7a6b7512-2654-423e-9357-1f8ca924904a/PluginBrands-white.png";
@@ -69,7 +69,7 @@ export function buildGammaInputText(options: GammaInputOptions): string {
   // Slide 5: Product overview
   let overviewSlide = `# The Range\n`;
   for (const product of products) {
-    const hero = getHeroUrl(product, tunnelUrl);
+    const hero = getHeroUrl(product, baseUrl);
     overviewSlide += `\n### ${product.name} — ${formatPrice(product.uk_rsp)}`;
     if (hero) overviewSlide += `\n\n${hero}`;
   }
@@ -80,7 +80,7 @@ export function buildGammaInputText(options: GammaInputOptions): string {
   for (const product of deepDiveProducts) {
     let slide = `# ${product.name}`;
 
-    const hero = getHeroUrl(product, tunnelUrl);
+    const hero = getHeroUrl(product, baseUrl);
     if (hero) slide += `\n\n${hero}`;
 
     if (product.category) slide += `\n\n**Category:** ${product.category}`;

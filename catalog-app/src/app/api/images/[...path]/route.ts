@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
-
-const IMAGES_DIR = path.join(process.cwd(), "data", "images");
+import { IMAGES_DIR } from "@/lib/paths";
 
 const MIME_TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
