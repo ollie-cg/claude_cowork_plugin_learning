@@ -9,6 +9,7 @@ Claude Code plugin for PluginBrands HubSpot CRM operations.
 | hubspot-api-query | `Skill(pluginbrands-toolkit:hubspot-api-query)` | CRM data model, object type IDs, pipeline stages, API patterns, and query recipes. Must be active before any HubSpot API call. |
 | hubspot-hygiene-check | `Skill(pluginbrands-toolkit:hubspot-hygiene-check)` | Data cleanliness audit scoped to a named person. Checks deals, brands, and product pitches for missing values, stale descriptions, and structural issues. |
 | generate-buyer-deck | `Skill(pluginbrands-toolkit:generate-buyer-deck)` | Generates tailored Gamma sales decks for retail buyers. Orchestrates HubSpot buyer intelligence, Catalog App product data, and Gamma MCP with automated Puppeteer visual QA. |
+| client-summary | `Skill(pluginbrands-toolkit:client-summary)` | Summarises a client's pipeline — buyer breakdown, deal stages, product counts, and recent activity. |
 
 ## Usage
 
@@ -51,6 +52,24 @@ Workflow:
 5. Generates via Gamma API with `chimney-dust` theme
 6. Runs visual QA with Puppeteer, auto-retries up to 2x if issues found
 
+### Client Summary
+
+Run by asking:
+- "Summarise MOJU"
+- "How is Grind doing?"
+- "Client summary for X"
+- "Review the pipeline for Y"
+
+Requires:
+- `hubspot-api-query` skill (active)
+
+Workflow:
+1. Resolves client by name from Client Services
+2. Asks whether to include per-team-member breakdown
+3. Fetches brands, deduplicates, and resolves underlying deals
+4. Fetches recent meetings and notes
+5. Renders pipeline table and activity summary
+
 ## Setup
 
 This plugin is registered via the project-root marketplace at `.claude-plugin/marketplace.json`. To enable:
@@ -66,7 +85,8 @@ This plugin is registered via the project-root marketplace at `.claude-plugin/ma
    ```json
    "Skill(pluginbrands-toolkit:hubspot-api-query)",
    "Skill(pluginbrands-toolkit:hubspot-hygiene-check)",
-   "Skill(pluginbrands-toolkit:generate-buyer-deck)"
+   "Skill(pluginbrands-toolkit:generate-buyer-deck)",
+   "Skill(pluginbrands-toolkit:client-summary)"
    ```
 
 3. Restart Claude Code.
