@@ -48,7 +48,7 @@ Match the owner ID to a name:
 | Adam Priest | `115118133` |
 | Charlie Knight | `118594265` |
 
-## Step 1a: Ask Operator Breakdown Preference
+### Step 1a: Ask Operator Breakdown Preference
 
 Before fetching pipeline data, ask the user:
 
@@ -67,7 +67,7 @@ POST /crm/v3/objects/0-970/search
 }
 ```
 
-Page through results if `paging.next` exists.
+Page through results if `paging.next` exists (pass `"after": "VALUE"` in the request body).
 
 ## Step 3: Deduplicate Brands
 
@@ -114,14 +114,19 @@ GET /crm/v3/objects/deals/{dealId}/associations/meetings
 GET /crm/v3/objects/deals/{dealId}/associations/notes
 ```
 
-Collect all meeting and note IDs across all deals. Sort by recency. Take the 10 most recent and fetch their content:
+Collect all meeting and note IDs across all deals. The association endpoints return IDs only (no timestamps), so fetch all records first, then sort.
+
+Use batch reads for efficiency:
 
 ```
-GET /crm/v3/objects/meetings/{id}?properties=hs_meeting_title,hs_meeting_body,hs_meeting_start_time
-GET /crm/v3/objects/notes/{id}?properties=hs_note_body,hs_createdate
+POST /crm/v3/objects/meetings/batch/read
+{ "inputs": [{"id": "ID1"}, {"id": "ID2"}, ...], "properties": ["hs_meeting_title", "hs_meeting_body", "hs_meeting_start_time"] }
+
+POST /crm/v3/objects/notes/batch/read
+{ "inputs": [{"id": "ID1"}, {"id": "ID2"}, ...], "properties": ["hs_note_body", "hs_createdate"] }
 ```
 
-For each, produce a one-line summary (~15 words) of the content. Associate each activity with its buyer/deal name.
+Sort all results by `hs_meeting_start_time` / `hs_createdate` descending. Take the 10 most recent. For each, produce a one-line summary (~15 words) of the content. Associate each activity with its buyer/deal name.
 
 ## Step 6: Render the Output
 
