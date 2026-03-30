@@ -5,6 +5,7 @@ export interface Brand {
   logo_path: string | null;
   website: string | null;
   country: string | null;
+  hubspot_brand_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -75,6 +76,15 @@ export interface ProductImage {
   created_at: string;
 }
 
+export interface BrandImage {
+  id: number;
+  brand_id: number;
+  file_path: string;
+  image_type: "logo" | "hero" | "lifestyle" | null;
+  sort_order: number | null;
+  created_at: string;
+}
+
 export interface ProductWithImages extends Product {
   images: ProductImage[];
   brand_name?: string;
@@ -82,6 +92,7 @@ export interface ProductWithImages extends Product {
 
 export interface BrandDetail extends Brand {
   products: Product[];
+  brand_images: BrandImage[];
 }
 
 export type BrandInput = Omit<Brand, "id" | "created_at" | "updated_at">;
