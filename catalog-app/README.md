@@ -8,6 +8,57 @@ This is a standalone data store for product specifications, brand information, a
 
 This application is NOT directly connected to HubSpot. It maintains its own SQLite database with manually curated product data.
 
+## Production
+
+The app is deployed on Railway with auto-deploy from the `main` branch.
+
+**Live URL:** `https://claudecoworkpluginlearning-production.up.railway.app`
+
+### How deploys work
+
+1. Push to `main` on GitHub
+2. Railway detects the change (watches `catalog-app/**`)
+3. Builds using the `Dockerfile` in this directory
+4. Deploys automatically — health check hits `/api/brands`
+
+### Infrastructure
+
+- **Hosting:** Railway (Dockerfile builder)
+- **Volume:** Persistent volume mounted at `/data` — stores SQLite DB and uploaded images
+- **Domain:** `claudecoworkpluginlearning-production.up.railway.app`
+
+### Railway environment variables
+
+| Variable | Value | Purpose |
+|----------|-------|---------|
+| `CATALOG_APP_URL` | `https://claudecoworkpluginlearning-production.up.railway.app` | App's own public URL — used for image URLs in Gamma decks |
+| `DATA_DIR` | `/data` | Points to the persistent volume (DB + images) |
+| `GAMMA_API_KEY` | `sk-gamma-...` | Gamma API authentication |
+| `NODE_ENV` | `production` | Node environment |
+
+## Local Development
+
+```bash
+npm install
+npm run dev
+```
+
+The app runs on `http://localhost:4100`.
+
+### Environment variables
+
+Create a `.env.local` file:
+
+```bash
+GAMMA_API_KEY=your_gamma_api_key_here
+CATALOG_APP_URL=http://localhost:4100
+```
+
+- `GAMMA_API_KEY` — Required for deck generation. API key from Gamma.app.
+- `CATALOG_APP_URL` — The app's public URL. Locally this is `http://localhost:4100`. On Railway it's the production domain. Used to build image URLs embedded in generated decks.
+
+`DATA_DIR` is optional locally — defaults to `./data` relative to the project root.
+
 ## Stack
 
 - Next.js 16 (App Router)
@@ -17,31 +68,11 @@ This application is NOT directly connected to HubSpot. It maintains its own SQLi
 - shadcn/ui components
 - Tailwind CSS 4
 - Vitest (testing)
-
-## Running Locally
-
-```bash
-npm install
-npm run dev
-```
-
-The app runs on `http://localhost:4100`.
-
-### Required Environment Variables
-
-Create a `.env.local` file:
-
-```bash
-GAMMA_API_KEY=your_gamma_api_key_here
-TUNNEL_URL=https://your-ngrok-url.ngrok.io
-```
-
-- `GAMMA_API_KEY` - Required for deck generation. API key from Gamma.app.
-- `TUNNEL_URL` - Required for deck generation. Public ngrok URL pointing to localhost:4100. Used to embed product images in generated decks.
+- Docker (production)
 
 ## Database Schema
 
-The SQLite database is located at `/Users/ollie/projects/plugin/claude_cowork_plugin_learning/catalog-app/data/catalog.db` and auto-creates on first run.
+The SQLite database is located at `{DATA_DIR}/catalog.db` and auto-creates on first run.
 
 ### brands
 - `id` (INTEGER PRIMARY KEY)
@@ -94,71 +125,39 @@ The SQLite database is located at `/Users/ollie/projects/plugin/claude_cowork_pl
 
 ### Brands
 
-**GET** `/api/brands`
-- Returns all brands with product counts
-- Response: `BrandWithCount[]`
+**GET** `/api/brands` — Returns all brands with product counts
 
-**GET** `/api/brands/[id]`
-- Returns brand details with all products
-- Response: `BrandDetail`
+**GET** `/api/brands/[id]` — Returns brand details with all products
 
-**POST** `/api/brands`
-- Creates a new brand
-- Request body: `BrandInput`
-- Response: `Brand`
+**POST** `/api/brands` — Creates a new brand
 
-**PUT** `/api/brands/[id]`
-- Updates an existing brand
-- Request body: `BrandInput`
-- Response: `Brand`
+**PUT** `/api/brands/[id]` — Updates an existing brand
 
-**DELETE** `/api/brands/[id]`
-- Deletes a brand (cascades to products)
+**DELETE** `/api/brands/[id]` — Deletes a brand (cascades to products)
 
 ### Products
 
-**GET** `/api/products`
-- Query param: `brand_id` (required)
-- Returns all products for a brand
-- Response: `Product[]`
+**GET** `/api/products?brand_id=N` — Returns all products for a brand
 
-**GET** `/api/products/[id]`
-- Returns product details with images and brand name
-- Response: `ProductWithImages`
+**GET** `/api/products/[id]` — Returns product details with images (image URLs built using `CATALOG_APP_URL`)
 
-**POST** `/api/products`
-- Creates a new product
-- Request body: `Partial<ProductInput> & { brand_id: number; name: string }`
-- Response: `Product`
+**POST** `/api/products` — Creates a new product
 
-**PUT** `/api/products/[id]`
-- Updates an existing product
-- Request body: `Partial<ProductInput> & { brand_id: number; name: string }`
-- Response: `Product`
+**PUT** `/api/products/[id]` — Updates an existing product
 
-**DELETE** `/api/products/[id]`
-- Deletes a product (cascades to images)
+**DELETE** `/api/products/[id]` — Deletes a product (cascades to images)
 
 ### Product Images
 
-**POST** `/api/products/[id]/images`
-- Uploads a new image for a product
-- Request: `multipart/form-data` with `file` field
-- Optional fields: `image_type`, `sort_order`
-- Response: `ProductImage`
+**POST** `/api/products/[id]/images` — Uploads a new image (`multipart/form-data` with `file`, optional `image_type` and `sort_order`)
 
-**DELETE** `/api/products/[id]/images/[imageId]`
-- Deletes a product image
+**DELETE** `/api/products/[id]/images/[imageId]` — Deletes a product image
 
-**GET** `/api/images/[...path]`
-- Serves product image files
-- Path: relative file path from `public/uploads/`
+**GET** `/api/images/[...path]` — Serves product image files from `{DATA_DIR}/images/`
 
 ### Deck Generation
 
-**POST** `/api/decks/gamma`
-
-Generates a buyer presentation deck via Gamma API.
+**POST** `/api/decks/gamma` — Generates a buyer deck via Gamma API
 
 Request body:
 ```json
@@ -171,69 +170,24 @@ Request body:
 }
 ```
 
-Response (success):
-```json
-{
-  "gammaUrl": "https://gamma.app/docs/...",
-  "gammaId": "abc123",
-  "exportUrl": null,
-  "generationId": "gen_xyz"
-}
-```
-
-Response (error):
-```json
-{
-  "error": "Error message"
-}
-```
-
-Deck structure:
-1. Title slide (with prospect name, brand, optional logos)
-2. Who We Are (PluginBrands intro)
-3. What We Can Do Together (value props)
-4. Brand introduction
-5. Product overview (all products)
-6-8. Product deep dives (up to 3 products)
-9. Commercial summary table
-10. Next steps
+Requires `GAMMA_API_KEY` and `CATALOG_APP_URL` environment variables.
 
 ## Key Modules
 
-### `/Users/ollie/projects/plugin/claude_cowork_plugin_learning/catalog-app/src/lib/db.ts`
-Database initialization and connection management. Exports `getDb()` which returns a singleton SQLite connection. Auto-creates schema on first run with foreign keys enabled and WAL mode.
-
-### `/Users/ollie/projects/plugin/claude_cowork_plugin_learning/catalog-app/src/lib/queries.ts`
-All database queries. Exports functions for CRUD operations on brands, products, and images. Key functions:
-- `getAllBrands()`, `getBrandById()`, `createBrand()`, `updateBrand()`, `deleteBrand()`
-- `getProductsByBrand()`, `getProductById()`, `getProductsByIds()`, `createProduct()`, `updateProduct()`, `deleteProduct()`
-- `createProductImage()`, `getImagesByProduct()`, `deleteProductImage()`
-
-### `/Users/ollie/projects/plugin/claude_cowork_plugin_learning/catalog-app/src/lib/gamma-client.ts`
-Gamma API client. Exports:
-- `createGammaDeck(options)` - Creates a new deck generation job
-- `pollGammaGeneration(generationId, options)` - Polls until generation completes or fails
-
-### `/Users/ollie/projects/plugin/claude_cowork_plugin_learning/catalog-app/src/lib/gamma-input.ts`
-Deck content builder. Exports `buildGammaInputText(options)` which generates markdown slides from brand and product data. Handles image URLs via tunnel, formats pricing, builds product tables, and structures the narrative flow.
-
-## Environment Variables
-
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `GAMMA_API_KEY` | Yes (for deck generation) | API key for Gamma.app deck generation service |
-| `TUNNEL_URL` | Yes (for deck generation) | Public ngrok URL pointing to localhost:4100. Used to embed product images in decks. |
-
-Without these variables, the app will run but deck generation will fail.
+- `src/lib/paths.ts` — Centralised data paths (`DB_PATH`, `IMAGES_DIR`, `ASSETS_DIR`), configurable via `DATA_DIR` env var
+- `src/lib/db.ts` — Database initialisation and connection management (singleton SQLite, WAL mode, foreign keys)
+- `src/lib/queries.ts` — All database CRUD operations for brands, products, and images
+- `src/lib/gamma-client.ts` — Gamma API client (`createGammaDeck`, `pollGammaGeneration`)
+- `src/lib/gamma-input.ts` — Builds markdown slide content from brand/product data for Gamma
 
 ## Scripts
 
 | Script | Command | Purpose |
 |--------|---------|---------|
-| `dev` | `npm run dev` | Start Next.js dev server on port 4100 |
-| `build` | `npm run build` | Build production bundle |
+| `dev` | `npm run dev` | Start dev server on port 4100 |
+| `build` | `npm run build` | Build production bundle (standalone output) |
 | `start` | `npm start` | Start production server |
 | `lint` | `npm run lint` | Run ESLint |
-| `test` | `npm test` | Run Vitest tests (run mode) |
+| `test` | `npm test` | Run Vitest tests |
 | `test:watch` | `npm run test:watch` | Run Vitest tests (watch mode) |
-| `seed` | `npm run seed` | Seed database with sample data via `src/lib/seed.ts` |
+| `seed` | `npm run seed` | Seed database with sample data |

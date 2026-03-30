@@ -14,7 +14,7 @@ Before starting, verify these tools and configurations are available:
 **REQUIRED:**
 - **`hubspot-api-query` skill MUST be active** — provides buyer intelligence gathering patterns, object IDs, and HubSpot API access
 - **`GAMMA_API_KEY` environment variable MUST be set** — this is your Gamma API key. Generate one from Gamma Account Settings → API Keys. If missing, fail immediately: "GAMMA_API_KEY is not set. Get an API key from your Gamma account settings."
-- **`CATALOG_APP_URL` environment variable MUST be set** — fail early if undefined. This is the base URL for product catalog API calls (e.g., `https://catalog.pluginbrands.com`).
+- **`CATALOG_APP_URL` environment variable MUST be set** — fail early if undefined. This is the base URL for the product catalog app (production: `https://claudecoworkpluginlearning-production.up.railway.app`, local dev: `http://localhost:4100`).
 
 **OPTIONAL:**
 - **Puppeteer MCP tools** — `puppeteer_navigate`, `puppeteer_screenshot`, `puppeteer_evaluate`. If unavailable, skip Step 5 (Visual QA) and proceed without screenshots. Inform the user that QA will be manual.

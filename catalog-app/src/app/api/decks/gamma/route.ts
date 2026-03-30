@@ -28,10 +28,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const baseUrl = process.env.BASE_URL;
-  if (!baseUrl) {
+  const catalogAppUrl = process.env.CATALOG_APP_URL;
+  if (!catalogAppUrl) {
     return NextResponse.json(
-      { error: "BASE_URL is not configured" },
+      { error: "CATALOG_APP_URL is not configured" },
       { status: 400 }
     );
   }
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     products,
     prospectName: prospect_name.trim(),
     message: message?.trim() || undefined,
-    baseUrl,
+    baseUrl: catalogAppUrl,
     prospectLogoUrl: prospect_logo_url || undefined,
   });
 

@@ -1,8 +1,9 @@
 # Gamma Deck Generator: Product Images Not Rendering
 
 **Date:** 2026-03-27
-**Status:** Open
+**Status:** Resolved (2026-03-30) — Option D: Deployed Catalog App to Railway
 **Affects:** `generate-buyer-deck` skill, Step 4 (Gamma API call)
+**Resolution:** Catalog App deployed to `https://claudecoworkpluginlearning-production.up.railway.app`. Images served from a stable public URL — no tunnel required. Env var standardised to `CATALOG_APP_URL`.
 
 ## Summary
 

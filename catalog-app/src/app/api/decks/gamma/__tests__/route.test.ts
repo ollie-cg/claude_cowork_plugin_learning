@@ -39,7 +39,7 @@ describe("POST /api/decks/gamma", () => {
     expect(res.status).toBe(400);
   });
 
-  it("returns 400 if BASE_URL is not set", async () => {
+  it("returns 400 if CATALOG_APP_URL is not set", async () => {
     const { POST } = await import("../route");
     const req = new Request("http://localhost:4100/api/decks/gamma", {
       method: "POST",

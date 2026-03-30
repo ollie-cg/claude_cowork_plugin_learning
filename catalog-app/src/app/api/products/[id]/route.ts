@@ -12,7 +12,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   }
 
   // Build absolute image URLs
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+  const baseUrl = process.env.CATALOG_APP_URL || "http://localhost:4100";
   const withUrls = {
     ...product,
     images: product.images.map((img) => ({
