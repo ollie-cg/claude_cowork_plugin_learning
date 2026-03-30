@@ -9,6 +9,7 @@ const mockBrand: Brand = {
   logo_path: null,
   website: "https://mojudrinks.com",
   country: "United Kingdom",
+  hubspot_brand_id: null,
   created_at: "",
   updated_at: "",
 };
