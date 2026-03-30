@@ -1,33 +1,48 @@
-import Database from "better-sqlite3";
-import { DB_PATH } from "./paths";
+import { Pool } from "pg";
 
-let _db: Database.Database | null = null;
+let _pool: Pool | null = null;
+let _schemaReady: Promise<void> | null = null;
 
-export function getDb(): Database.Database {
-  if (!_db) {
-    _db = new Database(DB_PATH);
-    _db.pragma("journal_mode = WAL");
-    _db.pragma("foreign_keys = ON");
-    initSchema(_db);
+export function getPool(): Pool {
+  if (!_pool) {
+    const DATABASE_URL =
+      process.env.DATABASE_URL || "postgresql://localhost:5432/catalog";
+    _pool = new Pool({
+      connectionString: DATABASE_URL,
+    });
+    _schemaReady = initSchema(_pool).catch((err) => {
+      console.error("Schema initialization failed:", err);
+      _pool = null;
+      _schemaReady = null;
+      throw err;
+    });
   }
-  return _db;
+  return _pool;
 }
 
-export function initSchema(db: Database.Database): void {
-  db.exec(`
+export function schemaReady(): Promise<void> {
+  if (!_schemaReady) {
+    getPool();
+  }
+  return _schemaReady!;
+}
+
+export async function initSchema(pool: Pool): Promise<void> {
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS brands (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
       description TEXT,
       logo_path TEXT,
       website TEXT,
       country TEXT,
-      created_at DATETIME DEFAULT (datetime('now')),
-      updated_at DATETIME DEFAULT (datetime('now'))
+      hubspot_brand_id TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS products (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       brand_id INTEGER NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
       name TEXT NOT NULL,
       sku_code TEXT,
@@ -75,17 +90,26 @@ export function initSchema(db: Database.Database): void {
       manufacturer_name TEXT,
       manufacturer_address TEXT,
       shelf_life_days INTEGER,
-      created_at DATETIME DEFAULT (datetime('now')),
-      updated_at DATETIME DEFAULT (datetime('now'))
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
     );
 
     CREATE TABLE IF NOT EXISTS product_images (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
       file_path TEXT NOT NULL,
       image_type TEXT CHECK(image_type IN ('hero', 'pack', 'lifestyle', 'nutritional')),
       sort_order INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT (datetime('now'))
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS brand_images (
+      id SERIAL PRIMARY KEY,
+      brand_id INTEGER NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
+      file_path TEXT NOT NULL,
+      image_type TEXT CHECK(image_type IN ('logo', 'hero', 'lifestyle')),
+      sort_order INTEGER DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT NOW()
     );
   `);
 }
