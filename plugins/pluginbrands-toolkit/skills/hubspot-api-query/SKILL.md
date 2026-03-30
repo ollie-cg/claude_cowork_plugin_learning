@@ -59,7 +59,7 @@ These are repurposed native HubSpot types. `/crm/v3/schemas` returns empty. Name
 
 **Brand Pipeline** (`139663aa-09ee-418e-b67d-c8cfcd3e5ce3`): Brand Pitched → Waiting → Samples Requested → Proposal → Waiting for Feedback → Won → Lost
 
-**Product Pitch Pipeline** (`fdeea9a0-8d7e-4f9b-97b6-ca9a587eee87`): Proposed → Negotiation → Product Placed → Declined → Discontinued
+**Product Pitch Pipeline** (`fdeea9a0-8d7e-4f9b-97b6-ca9a587eee87`): Proposed (`6f14f8f1-407b-4b5b-99a7-db681b779076`) → Negotiation (`4549842107`) → Product Placed (`4549842108`) → Declined (`4549842109`) → Discontinued (`4549842110`)
 
 ## Automation Chain — What Happens Automatically
 
