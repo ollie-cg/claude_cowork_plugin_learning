@@ -1,6 +1,6 @@
 // src/app/api/decks/gamma/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getPool, schemaReady } from "@/lib/db";
 import { getBrandById, getProductsByIds } from "@/lib/queries";
 import { buildGammaInputText } from "@/lib/gamma-input";
 import { createGammaDeck, pollGammaGeneration } from "@/lib/gamma-client";
@@ -36,13 +36,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const db = getDb();
-  const brandDetail = getBrandById(db, Number(brand_id));
+  await schemaReady();
+  const pool = getPool();
+  const brandDetail = await getBrandById(pool, Number(brand_id));
   if (!brandDetail) {
     return NextResponse.json({ error: "Brand not found" }, { status: 404 });
   }
 
-  const products = getProductsByIds(db, product_ids.map(Number));
+  const products = await getProductsByIds(pool, product_ids.map(Number));
   if (products.length === 0) {
     return NextResponse.json(
       { error: "No products found for given IDs" },

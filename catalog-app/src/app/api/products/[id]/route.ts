@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getPool, schemaReady } from "@/lib/db";
 import { getProductById, updateProduct, deleteProduct } from "@/lib/queries";
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const db = getDb();
-  const product = getProductById(db, Number(id));
+  await schemaReady();
+  const pool = getPool();
+  const product = await getProductById(pool, Number(id));
 
   if (!product) {
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
@@ -32,8 +33,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "brand_id and name are required" }, { status: 400 });
   }
 
-  const db = getDb();
-  const product = updateProduct(db, Number(id), { ...body, name: body.name.trim() });
+  await schemaReady();
+  const pool = getPool();
+  const product = await updateProduct(pool, Number(id), { ...body, name: body.name.trim() });
 
   if (!product) {
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
@@ -44,7 +46,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const db = getDb();
-  deleteProduct(db, Number(id));
+  await schemaReady();
+  const pool = getPool();
+  await deleteProduct(pool, Number(id));
   return new NextResponse(null, { status: 204 });
 }

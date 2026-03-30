@@ -1,12 +1,13 @@
-import { getDb } from "@/lib/db";
+import { getPool, schemaReady } from "@/lib/db";
 import { getAllBrands } from "@/lib/queries";
 import { BrandCard } from "@/components/brand-card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
-export default function HomePage() {
-  const db = getDb();
-  const brands = getAllBrands(db);
+export default async function HomePage() {
+  await schemaReady();
+  const pool = getPool();
+  const brands = await getAllBrands(pool);
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-10">

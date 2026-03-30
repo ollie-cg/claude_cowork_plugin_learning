@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
-import { deleteProductImage } from "@/lib/queries";
+import { getPool, schemaReady } from "@/lib/db";
+import { deleteProductImage, getProductImageById } from "@/lib/queries";
 import { IMAGES_DIR } from "@/lib/paths";
 import fs from "fs";
 import path from "path";
@@ -10,16 +10,17 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; imageId: string }> }
 ) {
   const { imageId } = await params;
-  const db = getDb();
+  await schemaReady();
+  const pool = getPool();
 
   // Get image record to find file path
-  const image = db.prepare("SELECT file_path FROM product_images WHERE id = ?").get(Number(imageId)) as { file_path: string } | undefined;
+  const image = await getProductImageById(pool, Number(imageId));
 
   if (image) {
     const fullPath = path.join(IMAGES_DIR, image.file_path);
     if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
   }
 
-  deleteProductImage(db, Number(imageId));
+  await deleteProductImage(pool, Number(imageId));
   return new NextResponse(null, { status: 204 });
 }

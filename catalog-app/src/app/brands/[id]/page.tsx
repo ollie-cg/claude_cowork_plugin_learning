@@ -1,14 +1,15 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getDb } from "@/lib/db";
+import { getPool, schemaReady } from "@/lib/db";
 import { getBrandById } from "@/lib/queries";
 import { ProductTable } from "@/components/product-table";
 import { Button } from "@/components/ui/button";
 
 export default async function BrandDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const db = getDb();
-  const brand = getBrandById(db, Number(id));
+  await schemaReady();
+  const pool = getPool();
+  const brand = await getBrandById(pool, Number(id));
 
   if (!brand) notFound();
 

@@ -1,14 +1,15 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getDb } from "@/lib/db";
+import { getPool, schemaReady } from "@/lib/db";
 import { getProductById } from "@/lib/queries";
 import { ProductForm } from "@/components/product-form";
 import { ImageGallery } from "@/components/image-upload";
 
 export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const db = getDb();
-  const product = getProductById(db, Number(id));
+  await schemaReady();
+  const pool = getPool();
+  const product = await getProductById(pool, Number(id));
 
   if (!product) notFound();
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getPool, schemaReady } from "@/lib/db";
 import { createProductImage, getImagesByProduct, getProductById } from "@/lib/queries";
 import { IMAGES_DIR } from "@/lib/paths";
 import fs from "fs";
@@ -7,17 +7,19 @@ import path from "path";
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const db = getDb();
-  const images = getImagesByProduct(db, Number(id));
+  await schemaReady();
+  const pool = getPool();
+  const images = await getImagesByProduct(pool, Number(id));
   return NextResponse.json(images);
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const productId = Number(id);
-  const db = getDb();
+  await schemaReady();
+  const pool = getPool();
 
-  const product = getProductById(db, productId);
+  const product = await getProductById(pool, productId);
   if (!product) {
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }
@@ -43,7 +45,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const buffer = Buffer.from(await file.arrayBuffer());
   fs.writeFileSync(fullPath, buffer);
 
-  const image = createProductImage(db, {
+  const image = await createProductImage(pool, {
     product_id: productId,
     file_path: filePath,
     image_type: imageType,

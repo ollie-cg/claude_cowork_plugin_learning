@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getDb } from "@/lib/db";
+import { getPool, schemaReady } from "@/lib/db";
 import { getBrandById } from "@/lib/queries";
 import { ProductForm } from "@/components/product-form";
 
@@ -9,8 +9,9 @@ export default async function NewProductPage({ searchParams }: { searchParams: P
 
   if (!brand_id) redirect("/");
 
-  const db = getDb();
-  const brand = getBrandById(db, Number(brand_id));
+  await schemaReady();
+  const pool = getPool();
+  const brand = await getBrandById(pool, Number(brand_id));
 
   if (!brand) redirect("/");
 

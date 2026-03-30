@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getPool, schemaReady } from "@/lib/db";
 import { getBrandById, updateBrand, deleteBrand } from "@/lib/queries";
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const db = getDb();
-  const brand = getBrandById(db, Number(id));
+  await schemaReady();
+  const pool = getPool();
+  const brand = await getBrandById(pool, Number(id));
 
   if (!brand) {
     return NextResponse.json({ error: "Brand not found" }, { status: 404 });
@@ -22,13 +23,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "name is required" }, { status: 400 });
   }
 
-  const db = getDb();
-  const brand = updateBrand(db, Number(id), {
+  await schemaReady();
+  const pool = getPool();
+  const brand = await updateBrand(pool, Number(id), {
     name: body.name.trim(),
     description: body.description ?? null,
     logo_path: body.logo_path ?? null,
     website: body.website ?? null,
     country: body.country ?? null,
+    hubspot_brand_id: body.hubspot_brand_id ?? null,
   });
 
   if (!brand) {
@@ -40,7 +43,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const db = getDb();
-  deleteBrand(db, Number(id));
+  await schemaReady();
+  const pool = getPool();
+  await deleteBrand(pool, Number(id));
   return new NextResponse(null, { status: 204 });
 }
