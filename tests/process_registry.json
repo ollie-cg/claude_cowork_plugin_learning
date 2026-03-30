@@ -1186,6 +1186,1179 @@
           }
         ]
       }
+    },
+    {
+      "id": "client.onboard",
+      "category": "client_management",
+      "name": "Create a client company, contact, and client deal",
+      "trigger": "Operator needs to onboard a new client with a contact and a deal in the Client Deal Pipeline",
+      "prompt": "Create a new company called [TEST] Sunrise Smoothies Ltd. They are a CLIENT company (not a buyer) based in London, United Kingdom. Their domain is testsunrisesmoothies.com.\n\nThen create a contact at that company called Emma Richardson. She is a Brand Director in the Growth department, based in London, United Kingdom. Her email is emma.richardson@testsunrisesmoothies.com. Make sure she is associated to the company.\n\nThen create a client deal called '[TEST] Sunrise Smoothies - New Client Deal' in the Client Deal Pipeline at the Discovery stage. Set the amount to 4500, length_of_contract__months_ to 12, and customer_profile to 'QSR & Casual Dining'. Make sure the deal is associated to the company.",
+      "actions": [
+        {
+          "id": "create_company",
+          "description": "Create the client company with provided properties",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/companies/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "domain",
+                      "operator": "EQ",
+                      "value": "testsunrisesmoothies.com"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "name",
+                "domain",
+                "city",
+                "country",
+                "createdate"
+              ]
+            },
+            "capture": {
+              "company_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "name", "operator": "contains", "value": "Sunrise Smoothies" },
+              { "field": "domain", "operator": "eq", "value": "testsunrisesmoothies.com" },
+              { "field": "city", "operator": "eq", "value": "London" },
+              { "field": "country", "operator": "eq", "value": "United Kingdom" }
+            ]
+          }
+        },
+        {
+          "id": "create_contact_and_associate",
+          "description": "Create the contact with provided properties and associate to the company",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/contacts/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "email",
+                      "operator": "EQ",
+                      "value": "emma.richardson@testsunrisesmoothies.com"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "firstname",
+                "lastname",
+                "email",
+                "jobtitle",
+                "department",
+                "city",
+                "country",
+                "createdate"
+              ]
+            },
+            "capture": {
+              "contact_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "firstname", "operator": "eq", "value": "Emma" },
+              { "field": "lastname", "operator": "eq", "value": "Richardson" },
+              { "field": "email", "operator": "eq", "value": "emma.richardson@testsunrisesmoothies.com" },
+              { "field": "jobtitle", "operator": "eq", "value": "Brand Director" },
+              {
+                "field": "associations",
+                "operator": "associated_to",
+                "object_type": "companies",
+                "value": "{company_id}"
+              }
+            ]
+          }
+        },
+        {
+          "id": "create_deal_and_associate",
+          "description": "Create a client deal in the Client Deal Pipeline at Discovery and associate to the company",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/deals/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "dealname",
+                      "operator": "EQ",
+                      "value": "[TEST] Sunrise Smoothies - New Client Deal"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "dealname",
+                "pipeline",
+                "dealstage",
+                "amount",
+                "length_of_contract__months_",
+                "customer_profile",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "createdate", "direction": "DESCENDING"}]
+            },
+            "capture": {
+              "deal_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "dealname", "operator": "eq", "value": "[TEST] Sunrise Smoothies - New Client Deal" },
+              { "field": "pipeline", "operator": "eq", "value": "2760762585" },
+              { "field": "dealstage", "operator": "eq", "value": "3774636253" },
+              { "field": "amount", "operator": "eq", "value": "4500" },
+              { "field": "length_of_contract__months_", "operator": "eq", "value": "12" },
+              { "field": "customer_profile", "operator": "eq", "value": "QSR & Casual Dining" },
+              {
+                "field": "associations",
+                "operator": "associated_to",
+                "object_type": "companies",
+                "value": "{company_id}"
+              }
+            ]
+          }
+        }
+      ],
+      "teardown": {
+        "description": "Remove test deal, contact, and company (children first, then parent records)",
+        "api_calls": [
+          {
+            "id": "delete_deal",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/deals/{deal_id}"
+          },
+          {
+            "id": "delete_contact",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/contacts/{contact_id}"
+          },
+          {
+            "id": "delete_company",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/companies/{company_id}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "client.deal_close_lost",
+      "category": "client_management",
+      "name": "Create a client deal and move it to Closed Lost",
+      "trigger": "Operator needs to mark a client deal as lost after negotiation",
+      "prompt": "Create a new company called [TEST] Redhill Organics. They are based in Brighton, United Kingdom. Their domain is testredhillorganics.com.\n\nThen create a client deal called '[TEST] Redhill Organics - Client Deal' in the Client Deal Pipeline at the Discovery stage. Associate the deal to the company.\n\nNow move the deal to Negotiation, then move it to Closed Lost.",
+      "actions": [
+        {
+          "id": "create_company",
+          "description": "Create the client company",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/companies/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "domain",
+                      "operator": "EQ",
+                      "value": "testredhillorganics.com"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "name",
+                "domain",
+                "city",
+                "createdate"
+              ]
+            },
+            "capture": {
+              "company_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "name", "operator": "contains", "value": "Redhill Organics" },
+              { "field": "domain", "operator": "eq", "value": "testredhillorganics.com" },
+              { "field": "city", "operator": "eq", "value": "Brighton" }
+            ]
+          }
+        },
+        {
+          "id": "create_deal_and_associate",
+          "description": "Create a client deal in the Client Deal Pipeline and associate to the company",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/deals/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "dealname",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Redhill"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "dealname",
+                "pipeline",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "createdate", "direction": "DESCENDING"}]
+            },
+            "capture": {
+              "deal_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "dealname", "operator": "contains", "value": "Redhill Organics" },
+              { "field": "pipeline", "operator": "eq", "value": "2760762585" },
+              {
+                "field": "associations",
+                "operator": "associated_to",
+                "object_type": "companies",
+                "value": "{company_id}"
+              }
+            ]
+          }
+        },
+        {
+          "id": "verify_deal_closed_lost",
+          "description": "Verify the deal ended at Closed Lost",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/deals/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "dealname",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Redhill"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "dealname",
+                "dealstage",
+                "hs_is_closed",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "createdate", "direction": "DESCENDING"}]
+            },
+            "assertions": [
+              { "field": "dealstage", "operator": "eq", "value": "3774636259" },
+              { "field": "hs_is_closed", "operator": "eq", "value": "true" }
+            ]
+          }
+        }
+      ],
+      "teardown": {
+        "description": "Remove test deal and company (children first, then parent records)",
+        "api_calls": [
+          {
+            "id": "delete_deal",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/deals/{deal_id}"
+          },
+          {
+            "id": "delete_company",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/companies/{company_id}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "client.service_update",
+      "category": "client_management",
+      "name": "Create a Client Service record and set properties",
+      "trigger": "Operator needs to create a new Client Service with MRR, category, and start date",
+      "prompt": "Create a new Client Service (object type 0-162) called '[TEST] Harness Test Brand' in the Client Service Pipeline at the In Contract stage. Set the following properties:\n- mrr: 3500\n- hs_category: OOH\n- original_start_date: 2026-01-15\n\nConfirm the Client Service was created successfully by reading it back.",
+      "actions": [
+        {
+          "id": "create_client_service",
+          "description": "Create a Client Service record with provided properties",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/0-162/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "hs_name",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Harness Test Brand"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "hs_name",
+                "hs_pipeline_stage",
+                "mrr",
+                "hs_category",
+                "original_start_date",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "hs_createdate", "direction": "DESCENDING"}]
+            },
+            "capture": {
+              "client_service_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "hs_name", "operator": "contains", "value": "[TEST] Harness Test Brand" },
+              { "field": "hs_pipeline_stage", "operator": "eq", "value": "3843969243" },
+              { "field": "mrr", "operator": "eq", "value": "3500" },
+              { "field": "hs_category", "operator": "contains", "value": "OOH" },
+              { "field": "original_start_date", "operator": "eq", "value": "2026-01-15" }
+            ]
+          }
+        }
+      ],
+      "teardown": {
+        "description": "Remove test Client Service",
+        "api_calls": [
+          {
+            "id": "delete_client_service",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/0-162/{client_service_id}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "client.pipeline_progression",
+      "category": "client_management",
+      "name": "Create a client deal and move it through every stage of the Client Deal Pipeline",
+      "trigger": "Operator needs to progress a client deal through the full pipeline from Discovery to Closed Won",
+      "prompt": "Create a new company called '[TEST] Clearwater Beverages'. They are a beverage company based in Birmingham, United Kingdom. Their domain is testclearwaterbev.com.\n\nThen create a client deal called '[TEST] Clearwater - Client Pipeline Run' in the Client Deal Pipeline at the Discovery stage. Associate the deal to the company.\n\nNow move the deal through every open stage of the Client Deal Pipeline in order:\n1. Move it to Meeting Booked\n2. Move it to Proposal\n3. Move it to Negotiation\n4. Move it to Contract Sent\n5. Finally, move it to Closed Won\n\nAfter each move, confirm the deal is at the correct stage before moving to the next one. At the end, the deal should be at the Closed Won stage and marked as closed-won.",
+      "actions": [
+        {
+          "id": "create_company",
+          "description": "Create the client company",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/companies/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "domain",
+                      "operator": "EQ",
+                      "value": "testclearwaterbev.com"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "name",
+                "domain",
+                "city",
+                "country",
+                "createdate"
+              ]
+            },
+            "capture": {
+              "company_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "name", "operator": "contains", "value": "Clearwater Beverages" },
+              { "field": "domain", "operator": "eq", "value": "testclearwaterbev.com" },
+              { "field": "city", "operator": "eq", "value": "Birmingham" },
+              { "field": "country", "operator": "eq", "value": "United Kingdom" }
+            ]
+          }
+        },
+        {
+          "id": "create_deal_and_associate",
+          "description": "Create a client deal in the Client Deal Pipeline and associate to the company",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/deals/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "dealname",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Clearwater"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "dealname",
+                "pipeline",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "createdate", "direction": "DESCENDING"}]
+            },
+            "capture": {
+              "deal_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "dealname", "operator": "contains", "value": "Clearwater" },
+              { "field": "pipeline", "operator": "eq", "value": "2760762585" },
+              {
+                "field": "associations",
+                "operator": "associated_to",
+                "object_type": "companies",
+                "value": "{company_id}"
+              }
+            ]
+          }
+        },
+        {
+          "id": "verify_final_stage_is_closed_won",
+          "description": "Verify the deal ended at Closed Won and is marked closed-won",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/deals/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "dealname",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Clearwater"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "dealname",
+                "dealstage",
+                "hs_is_closed",
+                "hs_is_closed_won",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "createdate", "direction": "DESCENDING"}]
+            },
+            "assertions": [
+              { "field": "dealstage", "operator": "eq", "value": "3774636258" },
+              { "field": "hs_is_closed", "operator": "eq", "value": "true" },
+              { "field": "hs_is_closed_won", "operator": "eq", "value": "true" }
+            ]
+          }
+        },
+        {
+          "id": "verify_all_stages_entered",
+          "description": "Verify every stage was entered by checking HubSpot date_entered timestamps exist for each stage",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/deals/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "dealname",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Clearwater"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "dealname",
+                "hs_v2_date_entered_3774636253",
+                "hs_v2_date_entered_4961641660",
+                "hs_v2_date_entered_3774636254",
+                "hs_v2_date_entered_3774636255",
+                "hs_v2_date_entered_3774636256",
+                "hs_v2_date_entered_3774636258",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "createdate", "direction": "DESCENDING"}]
+            },
+            "assertions": [
+              { "field": "hs_v2_date_entered_3774636253", "operator": "not_null", "value": "" },
+              { "field": "hs_v2_date_entered_4961641660", "operator": "not_null", "value": "" },
+              { "field": "hs_v2_date_entered_3774636254", "operator": "not_null", "value": "" },
+              { "field": "hs_v2_date_entered_3774636255", "operator": "not_null", "value": "" },
+              { "field": "hs_v2_date_entered_3774636256", "operator": "not_null", "value": "" },
+              { "field": "hs_v2_date_entered_3774636258", "operator": "not_null", "value": "" }
+            ]
+          }
+        },
+        {
+          "id": "verify_stages_in_order",
+          "description": "Verify the deal passed through stages in chronological order (Discovery -> Meeting Booked -> ... -> Closed Won)",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/deals/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "dealname",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Clearwater"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "dealname",
+                "hs_v2_date_entered_3774636253",
+                "hs_v2_date_entered_4961641660",
+                "hs_v2_date_entered_3774636254",
+                "hs_v2_date_entered_3774636255",
+                "hs_v2_date_entered_3774636256",
+                "hs_v2_date_entered_3774636258",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "createdate", "direction": "DESCENDING"}]
+            },
+            "assertions": [
+              {
+                "field": "hs_v2_date_entered_3774636253;hs_v2_date_entered_4961641660;hs_v2_date_entered_3774636254;hs_v2_date_entered_3774636255;hs_v2_date_entered_3774636256;hs_v2_date_entered_3774636258",
+                "operator": "timestamps_chronological",
+                "value": ""
+              }
+            ]
+          }
+        }
+      ],
+      "teardown": {
+        "description": "Remove test deal and company (children first, then parent records)",
+        "api_calls": [
+          {
+            "id": "delete_deal",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/deals/{deal_id}"
+          },
+          {
+            "id": "delete_company",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/companies/{company_id}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "client.product_create",
+      "category": "client_management",
+      "name": "Create a Client Product and associate to Client Service",
+      "trigger": "Operator needs to create a new Client Product with full product details and associate it to a Client Service",
+      "prompt": "Create a new Client Product (object type 0-410) called '[TEST] Ginger Immunity Shot 60ml'. Set the following properties:\n- product_brand: Test Brand\n- product_category: Chilled\n- product_description: Cold-pressed ginger shot with turmeric and black pepper. Vegan. Gluten-free.\n- case_size: 12\n- uk_rsp: 2.49\n- wholesaler_case_cost: 18.00\n- retail_ean: 5060000000001\n- ingredients_english: Ginger juice (45%), apple juice, lemon juice, turmeric extract, black pepper extract\n- country_of_origin: United Kingdom\n- single_unit_net_weight_g: 60\n\nThen associate the Client Product to the MOJU Client Service (ID 1096067395777) using association type 1139.\n\nConfirm the Client Product was created successfully by reading it back.",
+      "actions": [
+        {
+          "id": "create_client_product",
+          "description": "Create a Client Product record with provided properties",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/0-410/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "hs_course_name",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Ginger Immunity Shot"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "hs_course_name",
+                "product_brand",
+                "product_category",
+                "case_size",
+                "uk_rsp",
+                "wholesaler_case_cost",
+                "ingredients_english",
+                "country_of_origin",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "hs_createdate", "direction": "DESCENDING"}]
+            },
+            "capture": {
+              "client_product_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "hs_course_name", "operator": "contains", "value": "[TEST] Ginger Immunity Shot" },
+              { "field": "product_category", "operator": "eq", "value": "Chilled" },
+              { "field": "case_size", "operator": "eq", "value": "12" },
+              { "field": "uk_rsp", "operator": "eq", "value": "2.49" },
+              { "field": "wholesaler_case_cost", "operator": "eq", "value": "18.00" },
+              { "field": "ingredients_english", "operator": "contains", "value": "Ginger juice" },
+              { "field": "country_of_origin", "operator": "eq", "value": "United Kingdom" }
+            ]
+          }
+        },
+        {
+          "id": "verify_association_to_client_service",
+          "description": "Verify the Client Product is associated to the MOJU Client Service",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/0-410/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "hs_course_name",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Ginger Immunity Shot"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "hs_course_name",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "hs_createdate", "direction": "DESCENDING"}]
+            },
+            "assertions": [
+              {
+                "field": "associations",
+                "operator": "associated_to",
+                "object_type": "0-162",
+                "value": "1096067395777"
+              }
+            ]
+          }
+        }
+      ],
+      "teardown": {
+        "description": "Remove test Client Product",
+        "api_calls": [
+          {
+            "id": "delete_client_product",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/0-410/{client_product_id}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "contact.role_associations",
+      "category": "contact_management",
+      "name": "Create a contact and associate to Client Service with multiple roles",
+      "trigger": "Operator needs to create a contact and associate them to a Client Service with specific role association types",
+      "prompt": "Create a new contact with firstname 'Alex' and lastname 'Harper'. Set jobtitle to 'Operations Manager' and email to 'alex.harper@testharnesscontact.com'.\n\nThen associate the contact to the MOJU Client Service (ID 1096067395777) with the following roles:\n- Reporting role (association type 4)\n- Finance role (association type 8)\n\nConfirm the contact was created and associated successfully by reading it back.",
+      "actions": [
+        {
+          "id": "create_contact",
+          "description": "Create the contact with provided properties",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/contacts/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "email",
+                      "operator": "EQ",
+                      "value": "alex.harper@testharnesscontact.com"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "firstname",
+                "lastname",
+                "email",
+                "jobtitle",
+                "createdate"
+              ]
+            },
+            "capture": {
+              "contact_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "firstname", "operator": "eq", "value": "Alex" },
+              { "field": "lastname", "operator": "eq", "value": "Harper" },
+              { "field": "email", "operator": "eq", "value": "alex.harper@testharnesscontact.com" },
+              { "field": "jobtitle", "operator": "eq", "value": "Operations Manager" }
+            ]
+          }
+        },
+        {
+          "id": "verify_association_to_client_service",
+          "description": "Verify the contact is associated to the MOJU Client Service",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/contacts/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "email",
+                      "operator": "EQ",
+                      "value": "alex.harper@testharnesscontact.com"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "email",
+                "createdate"
+              ]
+            },
+            "assertions": [
+              {
+                "field": "associations",
+                "operator": "associated_to",
+                "object_type": "0-162",
+                "value": "1096067395777"
+              }
+            ]
+          }
+        }
+      ],
+      "teardown": {
+        "description": "Remove test contact (associations auto-removed)",
+        "api_calls": [
+          {
+            "id": "delete_contact",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/contacts/{contact_id}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "chain.product_pitch_creation",
+      "category": "automation_chain",
+      "name": "Create a buyer deal, associate Client Service to trigger Brand and Product Pitch creation",
+      "trigger": "Operator needs to test the full automation chain from buyer deal creation through Brand and Product Pitch auto-creation",
+      "prompt": "Create a new company called '[TEST] Ashford Fresh Market'. They are a retail business based in Canterbury, United Kingdom. Their domain is testashfordfresh.com.\n\nThen create a buyer deal called '[TEST] Ashford Fresh Market - Pitch Test' in the Buyer Deal Pipeline at the Discovery stage. Associate the deal to the company. Associate the deal with the GLUG! Client Service (ID 1096053334264) so that a Brand record is auto-created.\n\nWait a few seconds for the Brand to be auto-created by the workflow, then find the Brand record that was created for this deal.\n\nNow move the deal through the pipeline stages in order: Follow Up, then Feedback Pending, then Feedback Received. Wait about 15 seconds after reaching Feedback Received for the Product Pitches to be automatically created.\n\nList all Product Pitches that were created for this buyer.",
+      "actions": [
+        {
+          "id": "create_company",
+          "description": "Create the buyer company",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/companies/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "domain",
+                      "operator": "EQ",
+                      "value": "testashfordfresh.com"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "name",
+                "domain",
+                "city",
+                "country",
+                "createdate"
+              ]
+            },
+            "capture": {
+              "company_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "name", "operator": "contains", "value": "Ashford Fresh Market" },
+              { "field": "domain", "operator": "eq", "value": "testashfordfresh.com" },
+              { "field": "city", "operator": "eq", "value": "Canterbury" },
+              { "field": "country", "operator": "eq", "value": "United Kingdom" }
+            ]
+          }
+        },
+        {
+          "id": "create_deal_and_associate",
+          "description": "Create a buyer deal in the Buyer Deal Pipeline at Discovery and associate to the company with GLUG! client service",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/deals/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "dealname",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Ashford"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "dealname",
+                "pipeline",
+                "dealstage",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "createdate", "direction": "DESCENDING"}]
+            },
+            "capture": {
+              "deal_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "dealname", "operator": "contains", "value": "Ashford Fresh Market" },
+              { "field": "pipeline", "operator": "eq", "value": "2760762586" },
+              { "field": "dealstage", "operator": "eq", "value": "4443390193" },
+              {
+                "field": "associations",
+                "operator": "associated_to",
+                "object_type": "companies",
+                "value": "{company_id}"
+              }
+            ]
+          }
+        },
+        {
+          "id": "verify_brand_at_proposal",
+          "description": "Verify a Brand record was auto-created and cascaded to Proposal stage",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/0-970/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "buyer_name",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Ashford"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "buyer_name",
+                "client_name_sync",
+                "hs_pipeline",
+                "hs_pipeline_stage",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "hs_createdate", "direction": "DESCENDING"}]
+            },
+            "capture": {
+              "brand_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "buyer_name", "operator": "contains", "value": "Ashford" },
+              { "field": "client_name_sync", "operator": "eq", "value": "GLUG!" },
+              { "field": "hs_pipeline_stage", "operator": "eq", "value": "4447561936" }
+            ]
+          }
+        },
+        {
+          "id": "verify_pitches_exist",
+          "description": "Verify Product Pitches were auto-created at Proposed stage",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/0-420/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "hs_name",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Ashford"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "hs_name",
+                "hs_pipeline_stage",
+                "client_name_sync",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "hs_createdate", "direction": "DESCENDING"}]
+            },
+            "assertions": [
+              { "field": "hs_name", "operator": "contains", "value": "Ashford" },
+              { "field": "hs_pipeline_stage", "operator": "eq", "value": "6f14f8f1-407b-4b5b-99a7-db681b779076" },
+              { "field": "client_name_sync", "operator": "eq", "value": "GLUG!" }
+            ]
+          }
+        }
+      ],
+      "teardown": {
+        "description": "Remove test product pitches, brand, deal, and company (pitches first via fallback, then brand, then parent records)",
+        "api_calls": [
+          {
+            "id": "delete_remaining_pitches",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/0-420/{remaining_pitch_placeholder}"
+          },
+          {
+            "id": "delete_brand",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/0-970/{brand_id}"
+          },
+          {
+            "id": "delete_deal",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/deals/{deal_id}"
+          },
+          {
+            "id": "delete_company",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/companies/{company_id}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "chain.cascading_loss",
+      "category": "automation_chain",
+      "name": "Test cascading loss automation from Product Pitches to Brand to Deal",
+      "trigger": "Operator needs to test the cascading loss workflow that moves Brand and Deal to Lost when all Product Pitches are declined",
+      "prompt": "Create a new company called '[TEST] Ferndale Food Hall'. They are a food hall based in Cardiff, United Kingdom. Their domain is testferndalefoodhall.com.\n\nThen create a buyer deal called '[TEST] Ferndale Food Hall - Loss Cascade Test' in the Buyer Deal Pipeline at the Discovery stage. Associate the deal to the company. Associate the deal with the GLUG! Client Service (ID 1096053334264) so that a Brand record is auto-created.\n\nWait a few seconds for the Brand to be auto-created by the workflow, then find the Brand record that was created for this deal.\n\nNow move the deal through the pipeline stages in order: Follow Up, then Feedback Pending, then Feedback Received. This triggers Product Pitch creation. Wait about 15 seconds for the Product Pitches to be automatically created.\n\nThen move ALL Product Pitches to the Declined stage. Wait about 10 seconds for the cascading loss workflow to run.\n\nReport what happened to the Brand stage and Deal stage after all pitches were declined.",
+      "actions": [
+        {
+          "id": "create_company",
+          "description": "Create the buyer company",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/companies/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "domain",
+                      "operator": "EQ",
+                      "value": "testferndalefoodhall.com"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "name",
+                "domain",
+                "city",
+                "country",
+                "createdate"
+              ]
+            },
+            "capture": {
+              "company_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "name", "operator": "contains", "value": "Ferndale Food Hall" },
+              { "field": "domain", "operator": "eq", "value": "testferndalefoodhall.com" },
+              { "field": "city", "operator": "eq", "value": "Cardiff" },
+              { "field": "country", "operator": "eq", "value": "United Kingdom" }
+            ]
+          }
+        },
+        {
+          "id": "create_deal_and_associate",
+          "description": "Create a buyer deal in the Buyer Deal Pipeline at Discovery and associate to the company with GLUG! client service",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/deals/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "dealname",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Ferndale"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "dealname",
+                "pipeline",
+                "dealstage",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "createdate", "direction": "DESCENDING"}]
+            },
+            "capture": {
+              "deal_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "dealname", "operator": "contains", "value": "Ferndale Food Hall" },
+              { "field": "pipeline", "operator": "eq", "value": "2760762586" },
+              { "field": "dealstage", "operator": "eq", "value": "4443390193" },
+              {
+                "field": "associations",
+                "operator": "associated_to",
+                "object_type": "companies",
+                "value": "{company_id}"
+              }
+            ]
+          }
+        },
+        {
+          "id": "verify_brand_created",
+          "description": "Verify a Brand record was auto-created with correct client_name_sync",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/0-970/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "buyer_name",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Ferndale"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "buyer_name",
+                "client_name_sync",
+                "hs_pipeline",
+                "hs_pipeline_stage",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "hs_createdate", "direction": "DESCENDING"}]
+            },
+            "capture": {
+              "brand_id": "$.results[0].id"
+            },
+            "assertions": [
+              { "field": "buyer_name", "operator": "contains", "value": "Ferndale" },
+              { "field": "client_name_sync", "operator": "eq", "value": "GLUG!" }
+            ]
+          }
+        },
+        {
+          "id": "verify_pitches_declined",
+          "description": "Verify all Product Pitches were moved to Declined stage",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/0-420/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "hs_name",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Ferndale"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "hs_name",
+                "hs_pipeline_stage",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "hs_createdate", "direction": "DESCENDING"}]
+            },
+            "assertions": [
+              { "field": "hs_pipeline_stage", "operator": "eq", "value": "4549842109" }
+            ]
+          }
+        },
+        {
+          "id": "verify_brand_cascaded_to_lost",
+          "description": "Verify the Brand cascaded to Lost stage after all pitches declined",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/0-970/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "buyer_name",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Ferndale"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "buyer_name",
+                "hs_pipeline_stage",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "hs_createdate", "direction": "DESCENDING"}]
+            },
+            "assertions": [
+              { "field": "hs_pipeline_stage", "operator": "eq", "value": "4447561939" }
+            ]
+          }
+        },
+        {
+          "id": "verify_deal_cascaded_to_lost",
+          "description": "Verify the Deal cascaded to Lost stage after Brand went to Lost",
+          "verify": {
+            "method": "search",
+            "endpoint": "/crm/v3/objects/deals/search",
+            "search": {
+              "filterGroups": [
+                {
+                  "filters": [
+                    {
+                      "propertyName": "dealname",
+                      "operator": "CONTAINS_TOKEN",
+                      "value": "Ferndale"
+                    }
+                  ]
+                }
+              ],
+              "properties": [
+                "dealname",
+                "dealstage",
+                "createdate"
+              ],
+              "sorts": [{"propertyName": "createdate", "direction": "DESCENDING"}]
+            },
+            "assertions": [
+              { "field": "dealstage", "operator": "eq", "value": "3774636266" }
+            ]
+          }
+        }
+      ],
+      "teardown": {
+        "description": "Remove test product pitches, brand, deal, and company (pitches first via fallback, then brand, then parent records)",
+        "api_calls": [
+          {
+            "id": "delete_remaining_pitches",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/0-420/{remaining_pitch_placeholder}"
+          },
+          {
+            "id": "delete_brand",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/0-970/{brand_id}"
+          },
+          {
+            "id": "delete_deal",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/deals/{deal_id}"
+          },
+          {
+            "id": "delete_company",
+            "method": "DELETE",
+            "endpoint": "/crm/v3/objects/companies/{company_id}"
+          }
+        ]
+      }
     }
   ]
 }

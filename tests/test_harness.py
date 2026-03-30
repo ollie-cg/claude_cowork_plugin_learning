@@ -602,6 +602,8 @@ def _fallback_teardown(
         "deals": "dealname",
         "notes": "hs_note_body",
         "calls": "hs_call_title",
+        "0-162": "hs_name",
+        "0-410": "hs_course_name",
         "0-420": "hs_name",
         "0-970": "buyer_name",
     }
@@ -815,7 +817,7 @@ def main():
 
         # Pre-tier cleanup: delete any lingering [TEST] records from previous runs
         print(f"\n  Pre-cleanup: searching for stale [TEST] records...")
-        for obj_type, field in [("calls", "hs_call_title"), ("notes", "hs_note_body"), ("0-420", "hs_name"), ("0-970", "buyer_name"), ("deals", "dealname"), ("contacts", "email"), ("companies", "name")]:
+        for obj_type, field in [("calls", "hs_call_title"), ("notes", "hs_note_body"), ("0-162", "hs_name"), ("0-410", "hs_course_name"), ("0-420", "hs_name"), ("0-970", "buyer_name"), ("deals", "dealname"), ("contacts", "email"), ("companies", "name")]:
             search_body = {
                 "filterGroups": [{"filters": [{"propertyName": field, "operator": "CONTAINS_TOKEN", "value": "TEST"}]}],
                 "properties": [field],
