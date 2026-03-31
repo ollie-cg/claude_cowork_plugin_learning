@@ -1,3 +1,12 @@
+// MCP server entry point. Express app with three route groups:
+//   /oauth/token — client credentials grant, returns JWT
+//   /health — health check
+//   /mcp — MCP streamable HTTP transport (POST/GET/DELETE)
+//
+// Each MCP session gets its own McpServer instance with all 9 tools registered.
+// Auth is required — the JWT from /oauth/token carries the user's name and
+// hubspot_owner_id, which gets stamped on create/update operations.
+
 import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import express from "express";

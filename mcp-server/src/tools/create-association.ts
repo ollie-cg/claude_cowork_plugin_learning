@@ -1,3 +1,7 @@
+// Links two HubSpot records via the v4 associations API.
+// Uses v4 (not v3) because v4 supports labelled association types,
+// which are needed for custom object associations like Deal -> Client Service (type 795).
+
 import type { ToolContext } from "./types.js";
 
 interface CreateAssociationInput {

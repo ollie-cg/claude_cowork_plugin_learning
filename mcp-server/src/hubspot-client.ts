@@ -1,3 +1,7 @@
+// Thin HTTP client for the HubSpot CRM v3 API.
+// Holds the single private app token and adds auth headers to every request.
+// All tool implementations call this client — it's the only thing that talks to HubSpot.
+
 const BASE_URL = "https://api.hubapi.com";
 
 export class HubSpotClient {

@@ -1,3 +1,8 @@
+// Creates a HubSpot record via POST /crm/v3/objects/{type}.
+// Automatically injects hubspot_owner_id from the authenticated user so records
+// are attributed to the correct team member in HubSpot's native UI.
+// Explicit hubspot_owner_id in properties takes precedence (spread order).
+
 import type { ToolContext } from "./types.js";
 
 interface Association {
