@@ -5,7 +5,7 @@
 //   /health — health check
 //   /mcp — MCP streamable HTTP transport (POST/GET/DELETE)
 //
-// Each MCP session gets its own McpServer instance with all 9 tools registered.
+// Each MCP session gets its own McpServer instance with all 10 tools registered.
 // Auth is required — the JWT from /oauth/token carries the user's name and
 // hubspot_owner_id, which gets stamped on create/update operations.
 
@@ -36,6 +36,7 @@ import { getAssociations } from "./tools/get-associations.js";
 import { createAssociation } from "./tools/create-association.js";
 import { listPipelines } from "./tools/list-pipelines.js";
 import { listOwners } from "./tools/list-owners.js";
+import { archiveObject } from "./tools/archive-object.js";
 
 // --- Config ---
 
@@ -284,6 +285,19 @@ function registerTools(server: McpServer, ctx: ToolContext): void {
     async () => {
       logToolCall({ user: ctx.user.name, tool: "list_owners" });
       return listOwners(ctx);
+    }
+  );
+
+  server.tool(
+    "archive_object",
+    "Archive (soft-delete) a HubSpot record. Moves it to the recycle bin — recoverable for ~90 days.",
+    {
+      objectType: z.string().describe("Object type: 'contacts', 'companies', 'deals', or numeric ID like '0-970'"),
+      objectId: z.string().describe("Record ID to archive"),
+    },
+    async (input) => {
+      logToolCall({ user: ctx.user.name, tool: "archive_object", objectType: input.objectType, recordIds: [input.objectId] });
+      return archiveObject(input, ctx);
     }
   );
 }

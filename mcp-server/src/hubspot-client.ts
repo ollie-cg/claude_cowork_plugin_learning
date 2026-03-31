@@ -51,6 +51,24 @@ export class HubSpotClient {
     });
   }
 
+  async delete(path: string): Promise<void> {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: "DELETE",
+      headers: this.headers,
+    });
+    if (!res.ok) {
+      let message = `status ${res.status}`;
+      try {
+        const err = (await res.json()) as { message?: string };
+        if (err.message) message = err.message;
+      } catch {
+        // ignore JSON parse errors
+      }
+      throw new Error(`HubSpot API error ${res.status}: ${message}`);
+    }
+    // 204 No Content — nothing to return
+  }
+
   private async request(url: string, init: RequestInit): Promise<unknown> {
     const res = await fetch(url, init);
     if (!res.ok) {
