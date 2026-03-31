@@ -1,8 +1,5 @@
 FROM node:20-alpine AS base
 
-# better-sqlite3 needs build tools for native compilation
-RUN apk add --no-cache python3 make g++
-
 WORKDIR /app
 
 # Install dependencies
