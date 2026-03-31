@@ -6,9 +6,10 @@ Reads tests/process_registry.json, executes each workflow via isolated
 Claude sessions, verifies results against live HubSpot, and writes
 structured run results to tests/runs/.
 
-Two tiers:
+Three tiers:
   A (raw)   — base prompt + curl templates + token only
   B (skill) — base prompt + curl templates + token + SKILL.md
+  C (MCP)   — base prompt + SKILL.md + MCP tools (no raw token in prompt)
 
 Usage:
   python3 tests/test_harness.py                              # All processes, both tiers
@@ -273,7 +274,25 @@ def build_system_prompt(tier: str, token: str) -> str:
 
     Tier A: base prompt + curl templates + token
     Tier B: base prompt + curl templates + token + SKILL.md
+    Tier C: base prompt + SKILL.md + MCP tools (no raw token)
     """
+    if tier == "C":
+        base_prompt = (
+            "You are an assistant that helps manage a HubSpot CRM system. "
+            "You have MCP tools available for HubSpot operations. "
+            "Use the search_objects, get_object, create_object, update_object, "
+            "batch_read, get_associations, create_association, list_pipelines, "
+            "and list_owners tools.\n\n"
+            "Execute the workflow described. Create, update, or associate records as instructed. "
+            "If data appears missing, broken, or inconsistent, say so explicitly."
+        )
+        parts = [base_prompt]
+        if SKILL_PATH.exists():
+            skill_text = SKILL_PATH.read_text()
+            parts.append("\n\n--- ACTIVE SKILL ---\n\n")
+            parts.append(skill_text)
+        return "".join(parts)
+
     curl_reference = (
         "\n\n## Curl Reference\n\n"
         "```bash\n"
@@ -342,6 +361,7 @@ def execute_claude_session(
     prompt: str,
     system_prompt: str,
     dry_run: bool = False,
+    tier: str = "A",
 ) -> dict:
     """
     Spawn an isolated Claude session and return the result.
@@ -361,13 +381,19 @@ def execute_claude_session(
         "--print",
         "--model", MODEL,
         "--output-format", "json",
-        "--tools", "Bash",
         "--setting-sources", "",
         "--dangerously-skip-permissions",
         "--no-session-persistence",
         "--system-prompt", system_prompt,
-        prompt,
     ]
+
+    if tier == "C":
+        mcp_config_path = str(TESTS_DIR / "mcp-config.json")
+        cmd.extend(["--mcp-config", mcp_config_path])
+    else:
+        cmd.extend(["--tools", "Bash"])
+
+    cmd.append(prompt)
 
     start_time = time.time()
 
@@ -719,7 +745,7 @@ def main():
     parser.add_argument(
         "--tier",
         action="append",
-        choices=["A", "B"],
+        choices=["A", "B", "C"],
         help="Run only this tier (can repeat; default: both A and B)",
     )
     parser.add_argument(
@@ -844,6 +870,7 @@ def main():
             claude_result = execute_claude_session(
                 prompt=process["prompt"],
                 system_prompt=system_prompt,
+                tier=tier,
             )
 
             print(f"  Claude finished in {claude_result['elapsed_seconds']}s "

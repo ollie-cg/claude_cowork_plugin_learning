@@ -19,8 +19,9 @@ Tests run in two tiers to measure skill impact:
 
 - **Tier A (raw)** — Base prompt + curl templates + HUBSPOT_TOKEN only
 - **Tier B (skill)** — Base prompt + curl templates + HUBSPOT_TOKEN + SKILL.md loaded
+- **Tier C (MCP)** — Base prompt + SKILL.md + MCP tools (no raw token in prompt)
 
-Both tiers execute the same workflow. Comparing results shows skill effectiveness.
+All tiers execute the same workflow. Comparing results shows skill and transport effectiveness.
 
 ## Running Tests
 
@@ -57,6 +58,9 @@ python3 tests/test_harness.py --tier A --tier B
 
 # Preview what would run (no execution)
 python3 tests/test_harness.py --dry-run
+
+# Run MCP tier (requires running MCP server)
+python3 tests/test_harness.py --tier C
 
 # Combine flags
 python3 tests/test_harness.py --process buyer.pipeline_progression --tier B --yes
