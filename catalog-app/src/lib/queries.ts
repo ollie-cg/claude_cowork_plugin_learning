@@ -174,37 +174,6 @@ export async function deleteProductImage(pool: Pool, id: number): Promise<void> 
   await pool.query("DELETE FROM product_images WHERE id = $1", [id]);
 }
 
-export async function getProductsByIds(pool: Pool, ids: number[]): Promise<ProductWithImages[]> {
-  if (ids.length === 0) return [];
-
-  const placeholders = ids.map((_, i) => `$${i + 1}`).join(", ");
-  const productsResult = await pool.query<Product & { brand_name: string }>(`
-    SELECT p.*, b.name AS brand_name
-    FROM products p
-    JOIN brands b ON b.id = p.brand_id
-    WHERE p.id IN (${placeholders})
-  `, ids);
-
-  const allImagesResult = await pool.query<ProductImage>(`
-    SELECT * FROM product_images
-    WHERE product_id IN (${placeholders})
-    ORDER BY sort_order
-  `, ids);
-
-  const imagesByProduct = new Map<number, ProductImage[]>();
-  for (const img of allImagesResult.rows) {
-    const list = imagesByProduct.get(img.product_id) || [];
-    list.push(img);
-    imagesByProduct.set(img.product_id, list);
-  }
-
-  const productMap = new Map(productsResult.rows.map(p => [p.id, p]));
-  return ids
-    .map(id => productMap.get(id))
-    .filter((p): p is (Product & { brand_name: string }) => p !== undefined)
-    .map(p => ({ ...p, images: imagesByProduct.get(p.id) || [] }));
-}
-
 // --- Brand Images ---
 
 export async function createBrandImage(

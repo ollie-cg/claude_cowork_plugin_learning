@@ -96,8 +96,8 @@ describe("DELETE /api/brands/[id]/images/[imageId]", () => {
     expect(deleteBrandImage).toHaveBeenCalledWith({}, 1);
   });
 
-  it("deletes the database record even if image is not found", async () => {
-    const { getBrandImageById, deleteBrandImage } = await import("@/lib/queries");
+  it("returns 404 if image does not exist", async () => {
+    const { getBrandImageById } = await import("@/lib/queries");
     vi.mocked(getBrandImageById).mockResolvedValue(null);
 
     const { DELETE } = await import("../route");
@@ -111,9 +111,31 @@ describe("DELETE /api/brands/[id]/images/[imageId]", () => {
       params: Promise.resolve({ id: "10", imageId: "999" }),
     });
 
-    expect(res.status).toBe(204);
-    expect(fs.existsSync).not.toHaveBeenCalled();
-    expect(fs.unlinkSync).not.toHaveBeenCalled();
-    expect(deleteBrandImage).toHaveBeenCalledWith({}, 999);
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 404 if image belongs to a different brand", async () => {
+    const { getBrandImageById } = await import("@/lib/queries");
+    vi.mocked(getBrandImageById).mockResolvedValue({
+      id: 1,
+      brand_id: 99,
+      file_path: "brands/99/logo.png",
+      image_type: "logo",
+      sort_order: 0,
+      created_at: "2024-01-01T00:00:00Z",
+    });
+
+    const { DELETE } = await import("../route");
+    const req = new Request("http://localhost:4100/api/brands/10/images/1", {
+      method: "DELETE",
+      headers: {
+        Authorization: "Bearer test-api-key",
+      },
+    });
+    const res = await DELETE(req as any, {
+      params: Promise.resolve({ id: "10", imageId: "1" }),
+    });
+
+    expect(res.status).toBe(404);
   });
 });
