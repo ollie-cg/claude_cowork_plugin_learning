@@ -1,5 +1,7 @@
-// MCP server entry point. Express app with three route groups:
-//   /oauth/token — client credentials grant, returns JWT
+// MCP server entry point. Express app with route groups:
+//   /.well-known/* — OAuth discovery (RFC 9728 + RFC 8414)
+//   /authorize — OAuth authorization code flow (browser-based consent)
+//   /oauth/token — token exchange (authorization_code + client_credentials)
 //   /health — health check
 //   /mcp — MCP streamable HTTP transport (POST/GET/DELETE)
 //
@@ -8,7 +10,7 @@
 // hubspot_owner_id, which gets stamped on create/update operations.
 
 import { readFileSync } from "node:fs";
-import { randomUUID } from "node:crypto";
+import { randomUUID, randomBytes, createHash } from "node:crypto";
 import express from "express";
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -41,6 +43,85 @@ interface AppConfig {
   users: UserConfig[];
   hubspotToken: string;
   jwtSecret: string;
+}
+
+// --- Authorization code store ---
+
+interface AuthCodeEntry {
+  clientId: string;
+  codeChallenge: string;
+  codeChallengeMethod: string;
+  redirectUri: string;
+  user: { name: string; hubspot_owner_id: string };
+  expiresAt: number;
+}
+
+// In-memory store — auth codes are single-use and expire after 5 minutes
+const authCodes = new Map<string, AuthCodeEntry>();
+
+// Clean up expired codes every 60s
+setInterval(() => {
+  const now = Date.now();
+  for (const [code, entry] of authCodes) {
+    if (entry.expiresAt < now) authCodes.delete(code);
+  }
+}, 60_000).unref();
+
+function verifyPkceS256(codeVerifier: string, codeChallenge: string): boolean {
+  const computed = createHash("sha256").update(codeVerifier).digest("base64url");
+  return computed === codeChallenge;
+}
+
+function loginPage(clientName: string, clientId: string, query: Record<string, string>, error?: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Authorize — PluginBrands</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           background: #111; color: #eee; display: flex; justify-content: center;
+           align-items: center; min-height: 100vh; }
+    .card { background: #1a1a1a; border: 1px solid #333; border-radius: 12px;
+            padding: 2rem; max-width: 400px; width: 100%; }
+    h1 { font-size: 1.25rem; margin-bottom: 0.5rem; }
+    p { color: #999; font-size: 0.9rem; margin-bottom: 1.5rem; }
+    .user { color: #fff; font-weight: 600; }
+    label { display: block; font-size: 0.85rem; color: #aaa; margin-bottom: 0.4rem; }
+    input[type="password"] { width: 100%; padding: 0.6rem 0.8rem; background: #222;
+           border: 1px solid #444; border-radius: 6px; color: #fff; font-size: 0.95rem;
+           margin-bottom: 1rem; }
+    input[type="password"]:focus { outline: none; border-color: #666; }
+    button { width: 100%; padding: 0.7rem; background: #fff; color: #000;
+             border: none; border-radius: 6px; font-size: 0.95rem; font-weight: 600;
+             cursor: pointer; }
+    button:hover { background: #ddd; }
+    .error { background: #3a1a1a; border: 1px solid #662222; border-radius: 6px;
+             padding: 0.6rem 0.8rem; margin-bottom: 1rem; color: #f88; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Authorize Access</h1>
+    <p>Grant <span class="user">${clientName}</span> access to PluginBrands HubSpot?</p>
+    ${error ? `<div class="error">${error}</div>` : ""}
+    <form method="POST" action="/authorize">
+      <input type="hidden" name="client_id" value="${clientId}">
+      <input type="hidden" name="redirect_uri" value="${query.redirect_uri || ""}">
+      <input type="hidden" name="code_challenge" value="${query.code_challenge || ""}">
+      <input type="hidden" name="code_challenge_method" value="${query.code_challenge_method || ""}">
+      <input type="hidden" name="state" value="${query.state || ""}">
+      <input type="hidden" name="scope" value="${query.scope || ""}">
+      <input type="hidden" name="response_type" value="${query.response_type || "code"}">
+      <label for="client_secret">Client Secret</label>
+      <input type="password" id="client_secret" name="client_secret" placeholder="secret_..." required autofocus>
+      <button type="submit">Authorize</button>
+    </form>
+  </div>
+</body>
+</html>`;
 }
 
 // --- Tool registration ---
@@ -211,24 +292,186 @@ function registerTools(server: McpServer, ctx: ToolContext): void {
 
 export function createApp(config: AppConfig) {
   const app = express();
+  app.set("trust proxy", 1);
   app.use(express.json());
+  app.use(express.urlencoded({ extended: false }));
 
   const hubspot = new HubSpotClient(config.hubspotToken);
   const transports: Record<string, StreamableHTTPServerTransport> = {};
+
+  // --- OAuth Discovery (RFC 9728 + RFC 8414) ---
+
+  app.get("/.well-known/oauth-protected-resource", (req, res) => {
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    res.json({
+      resource: `${baseUrl}/mcp`,
+      authorization_servers: [baseUrl],
+      bearer_methods_supported: ["header"],
+    });
+  });
+
+  app.get("/.well-known/oauth-authorization-server", (req, res) => {
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    res.json({
+      issuer: baseUrl,
+      authorization_endpoint: `${baseUrl}/authorize`,
+      token_endpoint: `${baseUrl}/oauth/token`,
+      token_endpoint_auth_methods_supported: ["client_secret_post"],
+      grant_types_supported: ["authorization_code", "client_credentials"],
+      response_types_supported: ["code"],
+      code_challenge_methods_supported: ["S256"],
+    });
+  });
 
   // --- Health check ---
   app.get("/health", (_req, res) => {
     res.json({ status: "ok" });
   });
 
+  // --- OAuth authorize endpoint (authorization_code + PKCE) ---
+
+  app.get("/authorize", (req, res) => {
+    const { client_id, response_type } = req.query as Record<string, string>;
+
+    if (response_type !== "code") {
+      res.status(400).send("Unsupported response_type. Expected 'code'.");
+      return;
+    }
+
+    const user = config.users.find((u) => u.client_id === client_id);
+    if (!user) {
+      res.status(400).send("Unknown client_id.");
+      return;
+    }
+
+    res.type("html").send(loginPage(user.name, client_id, req.query as Record<string, string>));
+  });
+
+  app.post("/authorize", (req, res) => {
+    const {
+      client_id,
+      client_secret,
+      redirect_uri,
+      code_challenge,
+      code_challenge_method,
+      state,
+      response_type,
+    } = req.body;
+
+    if (response_type !== "code") {
+      res.status(400).send("Unsupported response_type.");
+      return;
+    }
+
+    if (!redirect_uri) {
+      res.status(400).send("Missing redirect_uri.");
+      return;
+    }
+
+    // Validate credentials
+    const user = validateCredentials(client_id, client_secret, config.users);
+    if (!user) {
+      res.type("html").send(
+        loginPage(client_id, client_id, req.body, "Invalid client secret. Please try again.")
+      );
+      return;
+    }
+
+    // Generate authorization code (single-use, 5 min TTL)
+    const code = randomBytes(32).toString("hex");
+    authCodes.set(code, {
+      clientId: client_id,
+      codeChallenge: code_challenge || "",
+      codeChallengeMethod: code_challenge_method || "",
+      redirectUri: redirect_uri,
+      user: { name: user.name, hubspot_owner_id: user.hubspot_owner_id },
+      expiresAt: Date.now() + 5 * 60 * 1000,
+    });
+
+    // Redirect back to the client with the code
+    const redirectUrl = new URL(redirect_uri);
+    redirectUrl.searchParams.set("code", code);
+    if (state) redirectUrl.searchParams.set("state", state);
+
+    res.redirect(302, redirectUrl.toString());
+  });
+
   // --- OAuth token endpoint ---
   app.post("/oauth/token", (req, res) => {
-    const { client_id, client_secret, grant_type } = req.body;
+    const { grant_type } = req.body;
 
-    if (grant_type !== "client_credentials") {
+    // --- authorization_code grant ---
+    if (grant_type === "authorization_code") {
+      const { code, code_verifier, redirect_uri, client_id } = req.body;
+
+      if (!code) {
+        res.status(400).json({ error: "invalid_request", error_description: "Missing code" });
+        return;
+      }
+
+      const entry = authCodes.get(code);
+      if (!entry) {
+        res.status(400).json({ error: "invalid_grant", error_description: "Invalid or expired code" });
+        return;
+      }
+
+      // Single-use: delete immediately
+      authCodes.delete(code);
+
+      // Verify expiry
+      if (entry.expiresAt < Date.now()) {
+        res.status(400).json({ error: "invalid_grant", error_description: "Code expired" });
+        return;
+      }
+
+      // Verify client_id matches
+      if (client_id && client_id !== entry.clientId) {
+        res.status(400).json({ error: "invalid_grant", error_description: "client_id mismatch" });
+        return;
+      }
+
+      // Verify redirect_uri matches
+      if (redirect_uri && redirect_uri !== entry.redirectUri) {
+        res.status(400).json({ error: "invalid_grant", error_description: "redirect_uri mismatch" });
+        return;
+      }
+
+      // Verify PKCE
+      if (entry.codeChallenge && entry.codeChallengeMethod === "S256") {
+        if (!code_verifier) {
+          res.status(400).json({ error: "invalid_grant", error_description: "Missing code_verifier" });
+          return;
+        }
+        if (!verifyPkceS256(code_verifier, entry.codeChallenge)) {
+          res.status(400).json({ error: "invalid_grant", error_description: "PKCE verification failed" });
+          return;
+        }
+      }
+
+      const token = issueToken(
+        {
+          client_id: entry.clientId,
+          name: entry.user.name,
+          hubspot_owner_id: entry.user.hubspot_owner_id,
+        },
+        config.jwtSecret
+      );
+
+      res.json({
+        access_token: token,
+        token_type: "bearer",
+        expires_in: 86400,
+      });
+      return;
+    }
+
+    // --- client_credentials grant (original flow) ---
+    if (grant_type && grant_type !== "client_credentials") {
       res.status(400).json({ error: "unsupported_grant_type" });
       return;
     }
+
+    const { client_id, client_secret } = req.body;
 
     if (!client_id || !client_secret) {
       res.status(400).json({ error: "invalid_request" });
@@ -271,8 +514,11 @@ export function createApp(config: AppConfig) {
     if (!sessionId && isInitializeRequest(req.body)) {
       // Extract and validate user from JWT (required)
       const authHeader = req.headers.authorization;
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const wwwAuth = `Bearer resource_metadata="${baseUrl}/.well-known/oauth-protected-resource"`;
+
       if (!authHeader?.startsWith("Bearer ")) {
-        res.status(401).json({
+        res.status(401).set("WWW-Authenticate", wwwAuth).json({
           jsonrpc: "2.0",
           error: { code: -32000, message: "Authorization header required" },
           id: null,
@@ -284,7 +530,7 @@ export function createApp(config: AppConfig) {
       try {
         userPayload = verifyToken(authHeader.slice(7), config.jwtSecret);
       } catch {
-        res.status(401).json({
+        res.status(401).set("WWW-Authenticate", wwwAuth).json({
           jsonrpc: "2.0",
           error: { code: -32000, message: "Invalid or expired token" },
           id: null,

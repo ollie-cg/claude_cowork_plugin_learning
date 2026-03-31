@@ -5,6 +5,12 @@
       "client_secret_hash": "$2b$10$OXrQfGeAXA9nehefeaLLxugxl/HZ4yyqO85WQyql5A7EGLfC/ugp2",
       "name": "Test User",
       "hubspot_owner_id": "999"
+    },
+    {
+      "client_id": "pb_test_ade53148f534",
+      "client_secret_hash": "$2b$10$4vrrQiiu/McIxg2xoGKdbuMOM32daOgBZskXze3w9iE7CqmxGqJXK",
+      "name": "Test User 2",
+      "hubspot_owner_id": "999"
     }
   ]
 }
