@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPool, schemaReady } from "@/lib/db";
 import { getProductById, updateProduct, deleteProduct } from "@/lib/queries";
+import { withAuth } from "@/lib/auth";
 
-export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withAuth(async (_request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   await schemaReady();
   const pool = getPool();
@@ -23,9 +24,9 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   };
 
   return NextResponse.json(withUrls);
-}
+});
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const PUT = withAuth(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   const body = await request.json();
 
@@ -42,12 +43,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   return NextResponse.json(product);
-}
+});
 
-export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withAuth(async (_request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const { id } = await params;
   await schemaReady();
   const pool = getPool();
   await deleteProduct(pool, Number(id));
   return new NextResponse(null, { status: 204 });
-}
+});

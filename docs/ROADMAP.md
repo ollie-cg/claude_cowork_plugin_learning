@@ -1,8 +1,8 @@
 # PluginBrands Toolkit — Roadmap
 
-**Last updated:** 2026-03-30
+**Last updated:** 2026-03-31
 
-This roadmap captures the full plan for delivering the PluginBrands plugin, from bug fixes through to demo with Charlie.
+This roadmap captures the full plan for delivering the PluginBrands plugin, from security fixes through to demo with Charlie.
 
 ---
 
@@ -12,6 +12,7 @@ This roadmap captures the full plan for delivering the PluginBrands plugin, from
 - ~~Remove all ngrok/tunnel references from skills and catalog app — replace with live Railway URL~~ ✅ Deployed to Railway, replaced `TUNNEL_URL` with `CATALOG_APP_URL` (2026-03-30)
 - ~~Align env vars: standardise on `CATALOG_APP_URL` across skills and app~~ ✅ Single env var everywhere (2026-03-30)
 - ~~Fix broken link in hubspot-system-guide.md~~ ✅ Removed dangling reference to non-existent hubspot-connection.md (2026-03-30)
+- **Upward loss cascade not implemented** — documented as automated but doesn't exist in HubSpot. All Product Pitches → Declined should cascade Brand → Lost → Deal → Lost, but nothing fires. Brand rollup fields (`closed_matching`, `products_placed`, `count_of_closed_products`) also broken — always 0. See `docs/issues/2026-03-30-upward-loss-cascade-not-implemented.md`. Needs either: (a) build the workflows + fix rollups in HubSpot admin, or (b) update docs to mark as manual operator step
 
 ## 2. Document the catalog app deployment ✅
 
@@ -39,16 +40,13 @@ Investigation complete (2026-03-30) — all stage IDs, properties, and associati
 
 ## 5. Catalog app — expand and define (own workstream)
 
-This is a bigger project that needs its own planning. Current state: working CRUD app for brands, products, and images, deployed on Railway.
+This is a bigger project that needs its own planning. Current state: working CRUD app for brands, products, and images, deployed on Railway. Design doc approved: `docs/plans/2026-03-30-catalog-app-design.md`.
 
-Needs definition:
-
-- Define the full vision: what should the catalog do beyond what it does today?
-- Product data completeness — how do products get into the catalog? Manual entry, HubSpot sync, CSV import?
-- Image management workflow — how do images get uploaded, organised, and kept current?
-- Integration with skills — how should the buyer deck and client summary skills pull from the catalog?
-- UI/UX improvements for day-to-day use by the team
-- Create a separate design doc and implementation plan for this workstream
+Phases:
+- **Phase 1 (Database)** ✅ Postgres migration complete (2026-03-30). Brand images table and `hubspot_brand_id` column added.
+- **Phase 2 (API changes)** ✅ Brand image endpoints, API key auth, Gamma removal complete (2026-03-31). See `docs/plans/2026-03-31-phase2-api-changes-learnings.md`.
+- **Phase 3 (UI changes)** — Brand image gallery, bulk upload, simplified product form. Not started.
+- **Phase 4 (Skill updates)** — Update buyer deck skill for API key auth and `hubspot_brand_id` matching. Not started.
 
 ## 6. Add test coverage
 
@@ -90,16 +88,39 @@ Data quality (need qualitative verification):
 
 - Finalise plugin structure and metadata
 - Ensure all skills work in both Claude Code and Cowork (transport-agnostic refactor)
+- **Fix GitHub-based plugin installation** — Simon could not install the plugin from a GitHub link in Cowork; had to upload a zip file instead. Investigate what format/structure Cowork expects for GitHub-hosted plugins and fix accordingly. (Discovered 2026-03-31)
 - Write plugin README and installation instructions
-- End-to-end fresh install test
+- End-to-end fresh install test (from GitHub link, not zip)
 
-## 8. Review with Simon
+## 8. Build custom HubSpot MCP server
 
-- Walk Simon through the plugin capabilities
-- Have him test the two core workflows (buyer deck, client summary)
-- Gather feedback and iterate
+Added 2026-03-31 after Simon review. **Decision made: build a custom MCP server (Option B).** Design approved: `docs/plans/2026-03-31-custom-mcp-server-design.md`.
 
-## 9. Demo to Charlie
+The official HubSpot MCP server doesn't support custom objects, which breaks most workflows. With 5-6 team members needing access via Cowork, we also need centralised auth and user attribution.
+
+**Solution:** A standalone Node.js/TypeScript MCP server on Railway that:
+- Holds the single HubSpot token (not on individual machines)
+- Exposes 9 generic tools (search, get, create, update, batch read, associations, pipelines, owners)
+- Authenticates each user via OAuth (Cowork's custom connector UI)
+- Maps each user to their HubSpot owner ID so records show correct attribution
+- Logs every action with user identity
+
+**Implementation phases:**
+1. Scaffold MCP server with OAuth + JWT auth (`mcp-server/` in this repo)
+2. Build the 9 HubSpot proxy tools
+3. Deploy to Railway, generate user credentials
+4. Add Tier C to the test harness (MCP transport, same 13 test processes)
+5. Update skills to reference MCP tools instead of curl recipes
+6. Team onboarding — each person adds the connector in Cowork
+
+## 9. Review with Simon
+
+- ~~Walk Simon through the plugin capabilities~~ ✅ Done 2026-03-31
+- Captured findings: GitHub install broken, token exposed, MCP custom objects not supported
+- Have him re-test after fixes from Phases 0, 7, and 8
+- Test the two core workflows (buyer deck, client summary) end-to-end
+
+## 10. Demo to Charlie
 
 - Prepare a demo script showing the key workflows
 - Present the plugin and catalog app

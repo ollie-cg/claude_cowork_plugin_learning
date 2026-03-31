@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPool, schemaReady } from "@/lib/db";
 import { createProduct } from "@/lib/queries";
+import { withAuth } from "@/lib/auth";
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: NextRequest) => {
   const body = await request.json();
 
   if (!body.brand_id || !body.name?.trim()) {
@@ -13,4 +14,4 @@ export async function POST(request: NextRequest) {
   const pool = getPool();
   const product = await createProduct(pool, { ...body, name: body.name.trim() });
   return NextResponse.json(product, { status: 201 });
-}
+});

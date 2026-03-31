@@ -12,6 +12,7 @@ export interface Brand {
 
 export interface BrandWithCount extends Brand {
   product_count: number;
+  logo_url: string | null;
 }
 
 export interface Product {

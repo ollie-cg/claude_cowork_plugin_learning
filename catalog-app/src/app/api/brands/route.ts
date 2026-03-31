@@ -1,15 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPool, schemaReady } from "@/lib/db";
 import { getAllBrands, createBrand } from "@/lib/queries";
+import { withAuth } from "@/lib/auth";
 
-export async function GET() {
+export const GET = withAuth(async () => {
   await schemaReady();
   const pool = getPool();
   const brands = await getAllBrands(pool);
-  return NextResponse.json(brands);
-}
+  const baseUrl = process.env.CATALOG_APP_URL || "http://localhost:4100";
+  const withUrls = brands.map((b) => ({
+    ...b,
+    logo_url: b.logo_url ? `${baseUrl}/api/images/${b.logo_url}` : null,
+  }));
+  return NextResponse.json(withUrls);
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: NextRequest) => {
   const body = await request.json();
 
   if (!body.name?.trim()) {
@@ -28,4 +34,4 @@ export async function POST(request: NextRequest) {
   });
 
   return NextResponse.json(brand, { status: 201 });
-}
+});

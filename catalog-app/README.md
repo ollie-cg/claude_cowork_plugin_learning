@@ -1,12 +1,12 @@
-# Product Catalog & Deck Generator
+# Product Catalog
 
-Product catalog and deck generator for PluginBrands.
+Product catalog API for PluginBrands.
 
 ## Role in the System
 
-This is a standalone data store for product specifications, brand information, and product images. It serves as the source of truth for the `generate-buyer-deck` skill, which uses catalog data to generate buyer presentations via the Gamma API.
+This is a standalone data store for product specifications, brand information, and product images. It serves as the source of truth for the buyer deck generation skill.
 
-This application is NOT directly connected to HubSpot. It maintains its own SQLite database with manually curated product data.
+This application is NOT directly connected to HubSpot. It maintains its own Postgres database with manually curated product data.
 
 ## Production
 
@@ -19,21 +19,23 @@ The app is deployed on Railway with auto-deploy from the `main` branch.
 1. Push to `main` on GitHub
 2. Railway detects the change (watches `catalog-app/**`)
 3. Builds using the `Dockerfile` in this directory
-4. Deploys automatically — health check hits `/api/brands`
+4. Deploys automatically — health check hits `/api/health`
 
 ### Infrastructure
 
 - **Hosting:** Railway (Dockerfile builder)
-- **Volume:** Persistent volume mounted at `/data` — stores SQLite DB and uploaded images
+- **Database:** Railway Postgres (auto-linked via `DATABASE_URL`)
+- **Volume:** Persistent volume mounted at `/data` — stores uploaded images
 - **Domain:** `claudecoworkpluginlearning-production.up.railway.app`
 
 ### Railway environment variables
 
 | Variable | Value | Purpose |
 |----------|-------|---------|
-| `CATALOG_APP_URL` | `https://claudecoworkpluginlearning-production.up.railway.app` | App's own public URL — used for image URLs in Gamma decks |
-| `DATA_DIR` | `/data` | Points to the persistent volume (DB + images) |
-| `GAMMA_API_KEY` | `sk-gamma-...` | Gamma API authentication |
+| `CATALOG_APP_URL` | `https://claudecoworkpluginlearning-production.up.railway.app` | App's own public URL — used for image URLs |
+| `CATALOG_API_KEY` | *(secret)* | Bearer token for API authentication |
+| `DATABASE_URL` | *(auto-linked)* | Postgres connection string |
+| `DATA_DIR` | `/data` | Points to the persistent volume (images) |
 | `NODE_ENV` | `production` | Node environment |
 
 ## Local Development
@@ -50,12 +52,14 @@ The app runs on `http://localhost:4100`.
 Create a `.env.local` file:
 
 ```bash
-GAMMA_API_KEY=your_gamma_api_key_here
 CATALOG_APP_URL=http://localhost:4100
+CATALOG_API_KEY=your-dev-key
+DATABASE_URL=postgresql://localhost:5432/catalog
 ```
 
-- `GAMMA_API_KEY` — Required for deck generation. API key from Gamma.app.
-- `CATALOG_APP_URL` — The app's public URL. Locally this is `http://localhost:4100`. On Railway it's the production domain. Used to build image URLs embedded in generated decks.
+- `CATALOG_APP_URL` — The app's public URL. Locally this is `http://localhost:4100`. On Railway it's the production domain. Used to build image URLs.
+- `CATALOG_API_KEY` — Bearer token for API authentication. All `/api/*` requests must include `Authorization: Bearer <key>`.
+- `DATABASE_URL` — Postgres connection string.
 
 `DATA_DIR` is optional locally — defaults to `./data` relative to the project root.
 
@@ -64,7 +68,7 @@ CATALOG_APP_URL=http://localhost:4100
 - Next.js 16 (App Router)
 - React 19
 - TypeScript 5
-- SQLite (better-sqlite3)
+- Postgres (via node-postgres / `pg`)
 - shadcn/ui components
 - Tailwind CSS 4
 - Vitest (testing)
@@ -72,7 +76,7 @@ CATALOG_APP_URL=http://localhost:4100
 
 ## Database Schema
 
-The SQLite database is located at `{DATA_DIR}/catalog.db` and auto-creates on first run.
+The Postgres database is hosted on Railway and auto-creates tables on first run.
 
 ### brands
 - `id` (INTEGER PRIMARY KEY)
@@ -114,20 +118,32 @@ The SQLite database is located at `{DATA_DIR}/catalog.db` and auto-creates on fi
 - `updated_at` (DATETIME)
 
 ### product_images
-- `id` (INTEGER PRIMARY KEY)
+- `id` (SERIAL PRIMARY KEY)
 - `product_id` (INTEGER, FK to products)
 - `file_path` (TEXT NOT NULL)
 - `image_type` (TEXT) - one of: `hero`, `pack`, `lifestyle`, `nutritional`
 - `sort_order` (INTEGER)
-- `created_at` (DATETIME)
+- `created_at` (TIMESTAMPTZ)
+
+### brand_images
+- `id` (SERIAL PRIMARY KEY)
+- `brand_id` (INTEGER, FK to brands)
+- `file_path` (TEXT NOT NULL)
+- `image_type` (TEXT) - one of: `logo`, `hero`, `lifestyle`
+- `sort_order` (INTEGER)
+- `created_at` (TIMESTAMPTZ)
 
 ## API Endpoints
 
+All `/api/*` routes require authentication via `Authorization: Bearer <CATALOG_API_KEY>` header, except:
+- `GET /api/images/[...path]` — public (image URLs are embedded in decks)
+- `GET /api/health` — public (Railway health check)
+
 ### Brands
 
-**GET** `/api/brands` — Returns all brands with product counts
+**GET** `/api/brands` — Returns all brands with product counts and logo URL
 
-**GET** `/api/brands/[id]` — Returns brand details with all products
+**GET** `/api/brands/[id]` — Returns brand details with all products and brand images
 
 **POST** `/api/brands` — Creates a new brand
 
@@ -153,32 +169,24 @@ The SQLite database is located at `{DATA_DIR}/catalog.db` and auto-creates on fi
 
 **DELETE** `/api/products/[id]/images/[imageId]` — Deletes a product image
 
-**GET** `/api/images/[...path]` — Serves product image files from `{DATA_DIR}/images/`
+### Brand Images
 
-### Deck Generation
+**GET** `/api/brands/[id]/images` — Returns all images for a brand
 
-**POST** `/api/decks/gamma` — Generates a buyer deck via Gamma API
+**POST** `/api/brands/[id]/images` — Uploads a brand image (`multipart/form-data` with `file`, optional `image_type` and `sort_order`)
 
-Request body:
-```json
-{
-  "brand_id": 1,
-  "product_ids": [1, 2, 3],
-  "prospect_name": "Waitrose",
-  "message": "Optional custom message",
-  "prospect_logo_url": "https://example.com/logo.png"
-}
-```
+**DELETE** `/api/brands/[id]/images/[imageId]` — Deletes a brand image
 
-Requires `GAMMA_API_KEY` and `CATALOG_APP_URL` environment variables.
+### Image Serving
+
+**GET** `/api/images/[...path]` — Serves image files from `{DATA_DIR}/images/` (public, no auth required)
 
 ## Key Modules
 
-- `src/lib/paths.ts` — Centralised data paths (`DB_PATH`, `IMAGES_DIR`, `ASSETS_DIR`), configurable via `DATA_DIR` env var
-- `src/lib/db.ts` — Database initialisation and connection management (singleton SQLite, WAL mode, foreign keys)
+- `src/lib/paths.ts` — Centralised data paths (`IMAGES_DIR`, `ASSETS_DIR`), configurable via `DATA_DIR` env var
+- `src/lib/auth.ts` — API key authentication wrapper (`withAuth`)
+- `src/lib/db.ts` — Postgres connection pool and schema initialization
 - `src/lib/queries.ts` — All database CRUD operations for brands, products, and images
-- `src/lib/gamma-client.ts` — Gamma API client (`createGammaDeck`, `pollGammaGeneration`)
-- `src/lib/gamma-input.ts` — Builds markdown slide content from brand/product data for Gamma
 
 ## Scripts
 

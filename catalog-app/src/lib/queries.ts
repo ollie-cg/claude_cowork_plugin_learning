@@ -21,10 +21,17 @@ const PRODUCT_COLUMNS = new Set<string>([
 
 export async function getAllBrands(pool: Pool): Promise<BrandWithCount[]> {
   const result = await pool.query<BrandWithCount>(`
-    SELECT b.*, COALESCE(cnt, 0)::int AS product_count
+    SELECT b.*,
+           COALESCE(cnt, 0)::int AS product_count,
+           logo.file_path AS logo_url
     FROM brands b
     LEFT JOIN (SELECT brand_id, COUNT(*) AS cnt FROM products GROUP BY brand_id) p
       ON p.brand_id = b.id
+    LEFT JOIN (SELECT DISTINCT ON (brand_id) brand_id, file_path
+               FROM brand_images
+               WHERE image_type = 'logo'
+               ORDER BY brand_id, sort_order) logo
+      ON logo.brand_id = b.id
     ORDER BY b.name
   `);
   return result.rows;
