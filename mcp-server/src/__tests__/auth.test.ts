@@ -8,7 +8,7 @@ const TEST_SECRET = "test-jwt-secret-for-unit-tests";
 const testUsers: UserConfig[] = [
   {
     client_id: "pb_danny_abc123",
-    client_secret_hash: hashSync("secret_danny_xyz", 10),
+    client_secret_hash: hashSync("secret_danny_xyz", 4),
     name: "Danny Armstrong",
     hubspot_owner_id: "123456789",
   },

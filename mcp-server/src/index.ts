@@ -260,20 +260,27 @@ export function createApp(config: AppConfig) {
 
     // New session — must be an initialize request
     if (!sessionId && isInitializeRequest(req.body)) {
-      // Extract user from JWT (optional during init)
-      let userPayload: TokenPayload | null = null;
+      // Extract and validate user from JWT (required)
       const authHeader = req.headers.authorization;
-      if (authHeader?.startsWith("Bearer ")) {
-        try {
-          userPayload = verifyToken(authHeader.slice(7), config.jwtSecret);
-        } catch {
-          res.status(401).json({
-            jsonrpc: "2.0",
-            error: { code: -32000, message: "Invalid or expired token" },
-            id: null,
-          });
-          return;
-        }
+      if (!authHeader?.startsWith("Bearer ")) {
+        res.status(401).json({
+          jsonrpc: "2.0",
+          error: { code: -32000, message: "Authorization header required" },
+          id: null,
+        });
+        return;
+      }
+
+      let userPayload: TokenPayload;
+      try {
+        userPayload = verifyToken(authHeader.slice(7), config.jwtSecret);
+      } catch {
+        res.status(401).json({
+          jsonrpc: "2.0",
+          error: { code: -32000, message: "Invalid or expired token" },
+          id: null,
+        });
+        return;
       }
 
       const transport = new StreamableHTTPServerTransport({
@@ -291,9 +298,10 @@ export function createApp(config: AppConfig) {
 
       const ctx: ToolContext = {
         hubspot,
-        user: userPayload
-          ? { name: userPayload.name, hubspot_owner_id: userPayload.hubspot_owner_id }
-          : { name: "anonymous", hubspot_owner_id: "" },
+        user: {
+          name: userPayload.name,
+          hubspot_owner_id: userPayload.hubspot_owner_id,
+        },
       };
 
       const server = new McpServer(
