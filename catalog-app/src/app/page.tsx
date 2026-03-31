@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getPool, schemaReady } from "@/lib/db";
 import { getAllBrands } from "@/lib/queries";
 import { BrandCard } from "@/components/brand-card";
