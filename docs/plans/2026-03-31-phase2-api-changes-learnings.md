@@ -35,16 +35,16 @@ Used the subagent-driven-development skill — one implementer subagent per task
 - **README quality varied.** The Gamma removal subagent rewrote the README but left stale references ("Deck Generator" title, "Vercel Postgres SDK", wrong health check path). The final cross-cutting review caught these. Lesson: individual task reviews are good at checking task-level correctness, but miss global consistency. The final holistic review is essential.
 - **Pre-existing gaps propagated.** The plan said "follow product image patterns," so implementers replicated the same gaps (no ownership verification on DELETE, no error handling around fs+db operations, no file size limits). These are legitimate architectural debt from Phase 1. Task-level instructions to follow existing patterns are a double-edged sword.
 
-## Known architectural debt
+## Known architectural debt — all resolved
 
-These issues exist in both product and brand image routes. They should be addressed together as a cross-cutting concern:
+These issues were identified during Phase 2 reviews and fixed in commit 615f0e6:
 
-1. **No path traversal protection on upload** — `brandId`/`productId` from URL params used in file paths without explicit validation. Currently safe because `Number(id)` returns `NaN` for non-numeric strings, but no explicit guard.
-2. **DELETE doesn't verify resource ownership** — `DELETE /api/brands/999/images/1` would delete image 1 even if it belongs to brand 10.
-3. **No error handling around fs+db operations** — If DB insert fails after file write, orphaned file on disk. If file delete succeeds but DB delete fails, broken reference.
-4. **No file size or content-type validation** — Any file of any size can be uploaded.
-5. **Filename collision** — Uploading two files with the same name overwrites the first on disk but keeps both DB records.
-6. **`getProductsByIds` may be dead code** — Only used by the now-deleted Gamma routes. Keep if the external deck skill will call it via API; otherwise remove.
+1. ~~**No path traversal protection on upload**~~ ✅ Added ID validation (`Number.isInteger && > 0`) and `path.resolve().startsWith()` boundary check
+2. ~~**DELETE doesn't verify resource ownership**~~ ✅ DELETE now checks `brand_id`/`product_id` matches URL param before deleting
+3. ~~**No error handling around fs+db operations**~~ ✅ try/catch with file cleanup on DB insert failure
+4. ~~**No file size or content-type validation**~~ ✅ 10MB limit, extension whitelist (.jpg, .jpeg, .png, .gif, .webp, .svg)
+5. ~~**Filename collision**~~ ✅ `crypto.randomBytes(4)` hex prefix on all uploaded filenames
+6. ~~**`getProductsByIds` dead code**~~ ✅ Removed function and its tests
 
 ## What's next
 
