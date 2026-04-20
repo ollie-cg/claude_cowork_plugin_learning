@@ -51,15 +51,110 @@ These are repurposed native HubSpot types. `/crm/v3/schemas` returns empty. Name
 
 ## Pipelines and Stages
 
-**Buyer Deal Pipeline** (`2760762586`): Discovery → Follow Up → Feedback Pending → Feedback Received → Proposal → Proposal Feedback Pending → Won → Lost → No Response
+### Buyer Deal Pipeline (`2760762586`)
 
-**Client Deal Pipeline** (`2760762585`): Discovery → Meeting Booked → Proposal → Negotiation → Contract Sent → Closed Won → Closed Lost
+| # | Stage | Stage ID | Closed? |
+|---|-------|----------|---------|
+| 0 | Discovery | `4443390193` | No |
+| 1 | Follow Up | `4443390194` | No |
+| 2 | Feedback Pending | `4443390195` | No |
+| 3 | Feedback Received | `4443390196` | No |
+| 4 | Proposal | `4443390197` | No |
+| 5 | Proposal Feedback Pending | `4443390198` | No |
+| 6 | Won | `4443390199` | Yes |
+| 7 | Lost | `3774636266` | Yes |
+| 8 | No Response | `4443390200` | Yes |
 
-**Client Service Pipeline** (`ba9cdbd6-e220-45b2-a5a2-d67ebdcbade6`): 0. Waiting for Onboarding → 1. Basic Info Request → 2. Full Info Request (Client Products created here) → 3. Brand Induction → 4. In Contract → 5-8. Countdown to rolling → 9. Rolling Agreement → 10. Renewed → 11. Leaving → 12-14. Departure countdown → 15. Off-boarded
+### Client Deal Pipeline (`2760762585`)
 
-**Brand Pipeline** (`139663aa-09ee-418e-b67d-c8cfcd3e5ce3`): Brand Pitched → Waiting → Samples Requested → Proposal → Waiting for Feedback → Won → Lost
+| # | Stage | Stage ID | Closed? |
+|---|-------|----------|---------|
+| 0 | Discovery | `3774636253` | No |
+| 1 | Meeting Booked | `4961641660` | No |
+| 2 | Proposal | `3774636254` | No |
+| 3 | Negotiation | `3774636255` | No |
+| 4 | Contract Sent | `3774636256` | No |
+| 5 | Closed Won | `3774636258` | Yes |
+| 6 | Closed Lost | `3774636259` | Yes |
 
-**Product Pitch Pipeline** (`fdeea9a0-8d7e-4f9b-97b6-ca9a587eee87`): Proposed (`6f14f8f1-407b-4b5b-99a7-db681b779076`) → Negotiation (`4549842107`) → Product Placed (`4549842108`) → Declined (`4549842109`) → Discontinued (`4549842110`)
+Deal fields: `type` = `CLIENT`, `amount` (retainer value in GBP), `length_of_contract__months_`, `customer_profile` (enum: Business & Industry | Education | Sports & Leisure | Travel | QSR & Casual Dining | Healthcare | Defence & Government | Offshore | Vending | Major Multiples), `contract_file`, `brands_listed_in_customer`, `objectives_in_customer`.
+
+### Client Service Pipeline (`ba9cdbd6-e220-45b2-a5a2-d67ebdcbade6`)
+
+| # | Stage | Stage ID | Closed? |
+|---|-------|----------|---------|
+| 0 | Waiting for Onboarding | `8e2b21d0-7a90-4968-8f8c-a8525cc49c70` | No |
+| 1 | Basic Information Request | `600b692d-a3fe-4052-9cd7-278b134d7941` | No |
+| 2 | Full Information Request | `3843969241` | No |
+| 3 | Brand Induction | `3843969242` | No |
+| 4 | In Contract | `3843969243` | No |
+| 5 | 6 Months till Rolling | `3843969244` | No |
+| 6 | 3 Months till Rolling | `3843969245` | No |
+| 7 | 2 Months till Rolling | `3843969246` | No |
+| 8 | 1 Month till Rolling | `3843969247` | No |
+| 9 | Rolling Agreement | `3843969248` | No |
+| 10 | Renewed | `3843969249` | No |
+| 11 | Leaving | `3843969250` | No |
+| 12 | 3 Months from Leave | `3843969251` | No |
+| 13 | 2 Months from Leave | `3843969252` | No |
+| 14 | 1 Month from Leave | `3843969253` | No |
+| 15 | Off-boarded | `3843969254` | Yes |
+
+Client Products are created at stage 2 (Full Information Request). Stages 5-8 are countdown reminders as contract approaches rolling. Stages 12-14 are departure countdown.
+
+### Brand Pipeline (`139663aa-09ee-418e-b67d-c8cfcd3e5ce3`)
+
+| # | Stage | Stage ID | Closed? |
+|---|-------|----------|---------|
+| 0 | Brand Pitched | `4447561933` | No |
+| 1 | Waiting | `4447561934` | No |
+| 2 | Samples Requested | `4447561935` | No |
+| 3 | Proposal | `4447561936` | No |
+| 4 | Waiting for Feedback | `4447561937` | No |
+| 5 | Won | `4447561938` | Yes |
+| 6 | Lost | `4447561939` | Yes |
+
+### Product Pitch Pipeline (`fdeea9a0-8d7e-4f9b-97b6-ca9a587eee87`)
+
+| # | Stage | Stage ID | Closed? |
+|---|-------|----------|---------|
+| 0 | Proposed | `6f14f8f1-407b-4b5b-99a7-db681b779076` | No |
+| 1 | Negotiation | `4549842107` | No |
+| 2 | Product Placed | `4549842108` | Yes |
+| 3 | Declined | `4549842109` | Yes |
+| 4 | Discontinued | `4549842110` | Yes |
+
+### Client Product Pipeline (`9dd7104c-1ae0-402b-a194-9cc567fd6a45`)
+
+| # | Stage | Stage ID | Closed? |
+|---|-------|----------|---------|
+| 0 | Open Stage | `3e1a235d-1a64-4b7a-9ed5-7f0273ebd774` | No |
+| 1 | Closed Stage | `38942bdc-b389-487e-acf3-a43a2772a447` | Yes |
+
+### Lead Pipelines
+
+**Buyer Lead Pipeline** (`2761663691`):
+
+| # | Stage | Stage ID | State |
+|---|-------|----------|-------|
+| 0 | Waiting to Approach | `3774530750` | NEW |
+| 1 | New Lead | `3775025362` | NEW |
+| 2 | Attempting Contact | `3775025363` | IN_PROGRESS |
+| 3 | Engaged | `3775025364` | IN_PROGRESS |
+| 4 | Qualified | `3775025365` | QUALIFIED (closed) |
+| 5 | Disqualified | `3775025366` | UNQUALIFIED (closed) |
+
+**Client Lead Pipeline** (`lead-pipeline-id`):
+
+| # | Stage | Stage ID | State |
+|---|-------|----------|-------|
+| 0 | New Lead | `new-stage-id` | NEW |
+| 1 | Attempting Contact | `attempting-stage-id` | IN_PROGRESS |
+| 2 | Engaged | `connected-stage-id` | IN_PROGRESS |
+| 3 | Qualified | `qualified-stage-id` | QUALIFIED (closed) |
+| 4 | Disqualified | `unqualified-stage-id` | UNQUALIFIED (closed) |
+
+Leads use the standard `leads` object path (`/crm/v3/objects/leads`). Key fields: `hs_lead_name`, `hs_lead_type` (`CLIENT` or `BUYER`), `hs_lead_label` (`HOT` / `WARM` / `COLD`), `hs_lead_source`, `hs_lead_disqualification_reason`, `hubspot_owner_id`. Currently 16 buyer leads and 1 client lead in the system.
 
 ## Automation Chain — What Happens Automatically
 
@@ -74,10 +169,10 @@ These are repurposed native HubSpot types. `/crm/v3/schemas` returns empty. Name
 
 | Deal Stage | Deal Stage ID | → Brand Stage | Brand Stage ID |
 |-----------|---------------|---------------|----------------|
-| Follow Up | `4443390195` | Waiting | `4447561934` |
-| Feedback Pending | `4443390196` | Samples Requested | `4447561935` |
-| Feedback Received | `4443390197` | **Proposal** | `4447561936` |
-| Proposal | `4443390198` | Waiting for Feedback | `4447561937` |
+| Follow Up | `4443390194` | Waiting | `4447561934` |
+| Feedback Pending | `4443390195` | Samples Requested | `4447561935` |
+| Feedback Received | `4443390196` | **Proposal** | `4447561936` |
+| Proposal | `4443390197` | Waiting for Feedback | `4447561937` |
 
 Discovery, Won, Lost, and No Response do NOT cascade.
 

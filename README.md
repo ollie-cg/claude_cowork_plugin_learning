@@ -73,7 +73,12 @@ The plugin lives at `plugins/pluginbrands-toolkit/` and contains two skills:
 
 ### Installation
 
-Install via Claude Code / Cowork plugin marketplace, or point directly at this repo.
+```
+/plugin marketplace add ollie-cg/claude_cowork_plugin_learning@v1.0.0
+/plugin install pluginbrands-toolkit@pluginbrands-marketplace
+```
+
+For team-wide install, committed settings, env vars, and release instructions see `plugins/pluginbrands-toolkit/README.md`.
 
 ## Catalog App
 

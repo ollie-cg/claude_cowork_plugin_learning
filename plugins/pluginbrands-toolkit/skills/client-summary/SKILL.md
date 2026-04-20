@@ -33,28 +33,27 @@ Fetch Client Service pipeline stages once to map the `hs_pipeline_stage` ID to i
 GET /crm/v3/pipelines/0-162
 ```
 
-Match the owner ID to a name:
+Look up the owner name dynamically:
 
-| Name | Owner ID |
-|------|----------|
-| Danny Armstrong | `29590940` |
-| Morgan West | `30525450` |
-| Simon Greenwood-Haigh | `30585413` |
-| Ollie Gough | `33030680` |
-| Huw Roberts | `74984940` |
-| Issy Kluk | `76825862` |
-| Will Gatus | `78420301` |
-| Mithil Ruparelia | `89049321` |
-| Adam Priest | `115118133` |
-| Charlie Knight | `118594265` |
+```
+GET /crm/v3/owners?limit=100
+```
 
-### Step 1a: Ask Operator Breakdown Preference
+Match `hubspot_owner_id` from the Client Service to an owner in the response. Use `firstName` + `lastName` as the display name. Cache this response — it will be reused when resolving deal owners in Step 4.
+
+### Step 1a: Ask Output Format and Options
 
 Before fetching pipeline data, ask the user:
 
-> "Include per-team-member breakdown?" (Yes / No)
+> **Format:** Terminal, Email, or Deck?
+> **Include per-team-member breakdown?** Yes / No
 
-Store the answer for use in output rendering.
+Store both answers for use in output rendering.
+
+**Format notes:**
+- **Terminal** — Structured markdown printed to the console (default)
+- **Email** — Same content formatted as an email-ready summary with a subject line
+- **Deck** — _Not yet implemented._ If selected, tell the user: "Deck output is on the roadmap but not available yet. Would you like terminal or email instead?"
 
 ## Step 2: Fetch all Brands
 
@@ -130,7 +129,7 @@ Sort all results by `hs_meeting_start_time` / `hs_createdate` descending. Take t
 
 ## Step 6: Render the Output
 
-Output the report in this format:
+### Terminal format (default)
 
 **Header:**
 ```
@@ -183,6 +182,33 @@ Sorted by deal stage (Won first), then by last modified date within stage.
 If zero activities: show `No logged activity.`
 
 Cap at 10 items, most recent first.
+
+### Email format
+
+Client-facing format — **exclude internal data** (MRR, client service stage, start date, owner, and per-deal owner column). Only include the buyer count headline, pipeline table, and recent activity.
+
+```
+Subject: {CLIENT} — Pipeline Summary ({today's date})
+
+Hi,
+
+Here's the latest summary for {CLIENT}.
+
+Buyers: {N} | Won: {N} | Proposal: {N} | Feedback Received: {N} | Discovery: {N} | Follow Up: {N} | Other: {N}
+
+{Pipeline table — Buyer, Stage, Products, Last Activity columns only (no Owner)}
+
+{Recent Activity as a bullet list}
+
+Best,
+{requesting user's name or "PluginBrands"}
+```
+
+Strip markdown formatting (no `##`, `**`, `---`). Use plain text or simple HTML depending on the email client context.
+
+### Deck format
+
+Not yet implemented. See roadmap.
 
 ## Rate Limiting
 
