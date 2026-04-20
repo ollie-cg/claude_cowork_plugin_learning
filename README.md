@@ -74,7 +74,7 @@ The plugin lives at `plugins/pluginbrands-toolkit/` and contains two skills:
 ### Installation
 
 ```
-/plugin marketplace add ollie-cg/claude_cowork_plugin_learning@v1.0.0
+/plugin marketplace add ollie-cg/claude_cowork_plugin_learning@v1.1.0
 /plugin install pluginbrands-toolkit@pluginbrands-marketplace
 ```
 

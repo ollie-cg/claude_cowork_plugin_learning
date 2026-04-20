@@ -77,7 +77,7 @@ Workflow:
 Via slash command:
 
 ```
-/plugin marketplace add ollie-cg/claude_cowork_plugin_learning@v1.0.0
+/plugin marketplace add ollie-cg/claude_cowork_plugin_learning@v1.1.0
 /plugin install pluginbrands-toolkit@pluginbrands-marketplace
 ```
 
@@ -87,7 +87,7 @@ Or commit this to a shared project's `.claude/settings.json` for team-wide insta
 {
   "extraKnownMarketplaces": {
     "pluginbrands-marketplace": {
-      "source": { "source": "github", "repo": "ollie-cg/claude_cowork_plugin_learning", "ref": "v1.0.0" }
+      "source": { "source": "github", "repo": "ollie-cg/claude_cowork_plugin_learning", "ref": "v1.1.0" }
     }
   },
   "enabledPlugins": {
@@ -111,13 +111,31 @@ Add to `.claude/settings.local.json`:
 
 Restart Claude Code.
 
-### Environment variables
+### HubSpot access (v1.1.0+)
 
-Set these in your shell — they are **not** distributed with the plugin:
+The plugin binds to the PluginBrands MCP server (`.mcp.json` → `https://disciplined-nurturing-production-776e.up.railway.app/mcp`). The server holds the HubSpot token — **users do not set `HUBSPOT_TOKEN` locally**.
 
-- `HUBSPOT_TOKEN` — HubSpot private app token
-- `GAMMA_API_KEY` — Gamma API key (required by `generate-buyer-deck`)
-- `CATALOG_APP_URL` — Catalog App base URL (required by `generate-buyer-deck`)
+Each user needs their own OAuth Client ID + Secret. An admin provisions them:
+
+```
+cd mcp-server
+npm run add-user -- --name "Full Name" --hubspot-owner-id <their-hubspot-owner-id>
+git add users.json && git commit -m "access: add Full Name" && git push
+```
+
+The command prints the plaintext Client Secret **once**. Send the Client ID + Secret to the user out-of-band.
+
+- **Claude Code users:** On first tool call, Claude prompts for OAuth via the server's browser login page. User pastes their Client Secret.
+- **Cowork users:** Customize → Connectors → + → Add custom connector → URL `https://disciplined-nurturing-production-776e.up.railway.app/mcp` → Advanced → paste Client ID + Secret.
+
+### Environment variables (skills that bypass the MCP)
+
+Only required for `generate-buyer-deck`, which calls Gamma and the Catalog App directly:
+
+- `GAMMA_API_KEY` — Gamma API key
+- `CATALOG_APP_URL` — Catalog App base URL
+
+Set these in your shell (Claude Code) or equivalent Cowork connector config.
 
 ## Releasing a new version
 
