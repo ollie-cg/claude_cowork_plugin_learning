@@ -1,20 +1,8 @@
 {
   "users": [
     {
-      "client_id": "pb_test_9e1d7aee99d9",
-      "client_secret_hash": "$2b$10$OXrQfGeAXA9nehefeaLLxugxl/HZ4yyqO85WQyql5A7EGLfC/ugp2",
-      "name": "Test User",
-      "hubspot_owner_id": "999"
-    },
-    {
-      "client_id": "pb_test_ade53148f534",
-      "client_secret_hash": "$2b$10$ZDl4SkNIT8jM17p8HSG1tuMj3r4tx/zslmML6YVUnu3otit9Ppnem",
-      "name": "Test User 2",
-      "hubspot_owner_id": "999"
-    },
-    {
-      "client_id": "pb_ollie_665810fa9b58",
-      "client_secret_hash": "$2b$10$6Wpsel4oCsNFxM1299VjXO3lL1rt8h1yU1njqphx3dG5V4TnQA/ay",
+      "client_id": "pb_ollie_c6f5556f1b86",
+      "client_secret_hash": "$2b$10$J9KUfaIyEZdlSGeo5gbCl.UEsVSTFvjxFBi2Ox2MRcOt.y9LRY3dC",
       "name": "Ollie Gough",
       "hubspot_owner_id": "33030680"
     }
