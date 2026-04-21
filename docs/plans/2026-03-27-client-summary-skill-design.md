@@ -1,5 +1,7 @@
 # Client Summary Skill — Design
 
+> **⚠️ DEPRIORITISED (2026-04-21, v1.2.0):** The `client-summary` skill was removed from the shipped plugin. This doc is preserved for reference but is not under active development.
+
 **Date:** 2026-03-27
 **Based on:** `docs/plans/2026-03-27-client-summary-learnings.md`
 

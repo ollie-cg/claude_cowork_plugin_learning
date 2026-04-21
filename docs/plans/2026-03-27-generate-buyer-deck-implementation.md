@@ -1,5 +1,7 @@
 # Generate Buyer Deck — Implementation Plan
 
+> **⚠️ DEPRIORITISED (2026-04-21, v1.2.0):** The `generate-buyer-deck` skill was removed from the shipped plugin. This doc is preserved for reference but is not under active development.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Create the `generate-buyer-deck` skill in the `pluginbrands-toolkit` plugin — a SKILL.md that teaches Claude to orchestrate HubSpot buyer intelligence, Catalog App product data, and Gamma MCP to produce tailored sales decks with Puppeteer visual QA and auto-retry.

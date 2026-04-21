@@ -9,8 +9,8 @@
     {
       "name": "pluginbrands-toolkit",
       "source": "./plugins/pluginbrands-toolkit",
-      "description": "PluginBrands commercial toolkit — skills for client reporting, pitches, and sales narratives",
-      "version": "1.1.0",
+      "description": "PluginBrands commercial toolkit — HubSpot API query foundation skill",
+      "version": "1.2.0",
       "author": {
         "name": "PluginBrands"
       },

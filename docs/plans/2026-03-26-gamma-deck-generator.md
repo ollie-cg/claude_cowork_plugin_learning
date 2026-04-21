@@ -1,5 +1,7 @@
 # Gamma Deck Generator Implementation Plan
 
+> **⚠️ DEPRIORITISED (2026-04-21, v1.2.0):** The `generate-buyer-deck` skill was removed from the shipped plugin. This doc is preserved for reference but is not under active development.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Generate polished Gamma presentation decks from catalog app data (brand, products, pricing, images) via the Gamma API.

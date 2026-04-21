@@ -1,5 +1,7 @@
 # Deck Redesign: Plugin Brands Retailer Sales Deck
 
+> **⚠️ DEPRIORITISED (2026-04-21, v1.2.0):** The `generate-buyer-deck` skill was removed from the shipped plugin. This doc is preserved for reference but is not under active development.
+
 ## Context
 
 The current deck template (`deck-template.ts`) is a generic product catalog — brand-centric styling (MOJU orange), no Plugin Brands identity, no narrative structure. It needs to become a **Plugin Brands sales deck** pitched at **retailers/buyers**.

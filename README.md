@@ -26,8 +26,7 @@ How they relate:
 │   └── pluginbrands-toolkit/           # The production plugin
 │       ├── .claude-plugin/plugin.json
 │       └── skills/
-│           ├── hubspot-api-query/      # CRM domain knowledge skill
-│           └── hubspot-hygiene-check/  # Data quality audit skill
+│           └── hubspot-api-query/      # CRM domain knowledge skill
 ├── catalog-app/                        # Next.js product catalog + deck generator
 │   ├── src/
 │   │   ├── app/                        # Pages and API routes
@@ -65,16 +64,14 @@ For the full data model, pipelines, automation chains, and API connection detail
 
 ## Plugin
 
-The plugin lives at `plugins/pluginbrands-toolkit/` and contains two skills:
+The plugin lives at `plugins/pluginbrands-toolkit/` and contains one skill:
 
 **`hubspot-api-query`** — Teaches Claude the PluginBrands HubSpot data model. Contains custom object IDs, pipeline stage mappings, association types, query recipes, field value standards, and "iron laws" that prevent common errors. This is the core skill — without it, Claude cannot discover numeric custom object IDs via the API and fails on any workflow involving Brands, Product Pitches, or Client Services.
-
-**`hubspot-hygiene-check`** — Audits data quality for a named person's records. Checks deals, brands, and product pitches for missing values, stale data, and structural issues.
 
 ### Installation
 
 ```
-/plugin marketplace add ollie-cg/claude_cowork_plugin_learning@v1.1.0
+/plugin marketplace add ollie-cg/claude_cowork_plugin_learning@v1.2.0
 /plugin install pluginbrands-toolkit@pluginbrands-marketplace
 ```
 

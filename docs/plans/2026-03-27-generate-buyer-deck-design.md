@@ -1,5 +1,7 @@
 # Generate Buyer Deck — Skill Design
 
+> **⚠️ DEPRIORITISED (2026-04-21, v1.2.0):** The `generate-buyer-deck` skill was removed from the shipped plugin. This doc is preserved for reference but is not under active development.
+
 ## Overview
 
 A Claude Code skill (`generate-buyer-deck`) in the `pluginbrands-toolkit` plugin that orchestrates HubSpot, the Catalog App, and Gamma to produce tailored sales decks for retail buyers. Includes automated visual QA via Puppeteer with auto-retry.

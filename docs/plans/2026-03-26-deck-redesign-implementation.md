@@ -1,5 +1,7 @@
 # Deck Redesign Implementation Plan
 
+> **⚠️ DEPRIORITISED (2026-04-21, v1.2.0):** The `generate-buyer-deck` skill was removed from the shipped plugin. This doc is preserved for reference but is not under active development.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Replace the generic product catalog deck template with a Plugin Brands retailer sales deck using a dark→light→dark narrative structure.
