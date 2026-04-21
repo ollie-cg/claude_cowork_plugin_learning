@@ -2,11 +2,15 @@ import { describe, it, expect } from "vitest";
 import http from "node:http";
 import { createHash } from "node:crypto";
 import { hashSync } from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { createApp } from "../index.js";
 
 const TEST_SECRET = "test-jwt-secret";
 const CLIENT_ID = "pb_test_abc123";
 const CLIENT_SECRET = "secret_test_xyz";
+const OTHER_CLIENT_ID = "pb_other_def456";
+const OTHER_CLIENT_SECRET = "secret_other_xyz";
+const APP_CLIENT_ID = "cowork-pluginbrands";
 
 const app = createApp({
   users: [
@@ -15,6 +19,12 @@ const app = createApp({
       client_secret_hash: hashSync(CLIENT_SECRET, 4),
       name: "Test User",
       hubspot_owner_id: "12345",
+    },
+    {
+      client_id: OTHER_CLIENT_ID,
+      client_secret_hash: hashSync(OTHER_CLIENT_SECRET, 4),
+      name: "Other User",
+      hubspot_owner_id: "67890",
     },
   ],
   hubspotToken: "fake-hubspot-token",
@@ -67,29 +77,34 @@ function makeRequest(
 }
 
 describe("GET /authorize", () => {
-  it("returns login form for valid client_id", async () => {
+  it("renders a generic login form (no user lookup)", async () => {
     const { status, body } = await makeRequest(
       "GET",
-      `/authorize?response_type=code&client_id=${CLIENT_ID}&redirect_uri=https://example.com/callback`
+      `/authorize?response_type=code&client_id=${APP_CLIENT_ID}&redirect_uri=https://example.com/callback`
     );
     expect(status).toBe(200);
-    expect(body).toContain("Authorize Access");
-    expect(body).toContain("Test User");
-    expect(body).toContain("client_secret");
+    expect(body).toContain("Sign in");
+    // Both Client ID and Client Secret fields are visible (not hidden)
+    expect(body).toContain('name="client_id"');
+    expect(body).toContain('name="client_secret"');
+    // App client_id is passed through via hidden field
+    expect(body).toContain(`name="app_client_id" value="${APP_CLIENT_ID}"`);
+    // No user name personalization — user is unknown at GET time
+    expect(body).not.toContain("Test User");
   });
 
-  it("returns 400 for unknown client_id", async () => {
+  it("accepts any URL client_id (OAuth app identity, not user)", async () => {
     const { status } = await makeRequest(
       "GET",
-      "/authorize?response_type=code&client_id=pb_nobody&redirect_uri=https://example.com/callback"
+      "/authorize?response_type=code&client_id=whatever-cowork-uses&redirect_uri=https://example.com/callback"
     );
-    expect(status).toBe(400);
+    expect(status).toBe(200);
   });
 
   it("returns 400 for missing response_type", async () => {
     const { status } = await makeRequest(
       "GET",
-      `/authorize?client_id=${CLIENT_ID}&redirect_uri=https://example.com/callback`
+      `/authorize?client_id=${APP_CLIENT_ID}&redirect_uri=https://example.com/callback`
     );
     expect(status).toBe(400);
   });
@@ -135,7 +150,7 @@ describe("POST /authorize + token exchange", () => {
     );
 
     expect(status).toBe(200);
-    expect(body).toContain("Invalid client secret");
+    expect(body).toContain("Invalid Client ID or Secret");
   });
 
   it("full flow: authorize → token exchange with PKCE", async () => {
@@ -264,5 +279,62 @@ describe("POST /authorize + token exchange", () => {
     expect(tokenRes.status).toBe(400);
     expect(JSON.parse(tokenRes.body).error).toBe("invalid_grant");
     expect(JSON.parse(tokenRes.body).error_description).toContain("PKCE");
+  });
+
+  it("two users authenticating through the same app get distinct user identities", async () => {
+    // Both users arrive via the same Cowork org-level app_client_id, but submit
+    // their own personal credentials. Each should get a JWT attributed to them.
+    async function tokenForUser(userClientId: string, userSecret: string): Promise<string> {
+      const authBody = new URLSearchParams({
+        app_client_id: APP_CLIENT_ID,
+        client_id: userClientId,
+        client_secret: userSecret,
+        redirect_uri: "https://example.com/callback",
+        response_type: "code",
+      }).toString();
+
+      const authRes = await makeRequest(
+        "POST",
+        "/authorize",
+        authBody,
+        "application/x-www-form-urlencoded"
+      );
+      const code = new URL(authRes.headers.location!).searchParams.get("code")!;
+
+      const tokenBody = new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        client_id: APP_CLIENT_ID,
+      }).toString();
+      const tokenRes = await makeRequest(
+        "POST",
+        "/oauth/token",
+        tokenBody,
+        "application/x-www-form-urlencoded"
+      );
+      return JSON.parse(tokenRes.body).access_token;
+    }
+
+    const jwtA = await tokenForUser(CLIENT_ID, CLIENT_SECRET);
+    const jwtB = await tokenForUser(OTHER_CLIENT_ID, OTHER_CLIENT_SECRET);
+
+    const payloadA = jwt.verify(jwtA, TEST_SECRET) as {
+      client_id: string;
+      name: string;
+      hubspot_owner_id: string;
+    };
+    const payloadB = jwt.verify(jwtB, TEST_SECRET) as {
+      client_id: string;
+      name: string;
+      hubspot_owner_id: string;
+    };
+
+    expect(payloadA.client_id).toBe(CLIENT_ID);
+    expect(payloadA.name).toBe("Test User");
+    expect(payloadA.hubspot_owner_id).toBe("12345");
+
+    expect(payloadB.client_id).toBe(OTHER_CLIENT_ID);
+    expect(payloadB.name).toBe("Other User");
+    expect(payloadB.hubspot_owner_id).toBe("67890");
   });
 });

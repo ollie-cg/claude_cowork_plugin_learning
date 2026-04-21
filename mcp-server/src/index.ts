@@ -49,11 +49,11 @@ interface AppConfig {
 // --- Authorization code store ---
 
 interface AuthCodeEntry {
-  clientId: string;
+  clientId: string; // OAuth app client_id (matches token-exchange request per RFC 6749)
   codeChallenge: string;
   codeChallengeMethod: string;
   redirectUri: string;
-  user: { name: string; hubspot_owner_id: string };
+  user: { client_id: string; name: string; hubspot_owner_id: string };
   expiresAt: number;
 }
 
@@ -73,52 +73,61 @@ function verifyPkceS256(codeVerifier: string, codeChallenge: string): boolean {
   return computed === codeChallenge;
 }
 
-function loginPage(clientName: string, clientId: string, query: Record<string, string>, error?: string): string {
+function escapeAttr(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
+function loginPage(query: Record<string, string>, error?: string): string {
+  const appClientId = escapeAttr(query.client_id || "");
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Authorize — PluginBrands</title>
+  <title>Sign in — PluginBrands HubSpot</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
            background: #111; color: #eee; display: flex; justify-content: center;
            align-items: center; min-height: 100vh; }
     .card { background: #1a1a1a; border: 1px solid #333; border-radius: 12px;
-            padding: 2rem; max-width: 400px; width: 100%; }
-    h1 { font-size: 1.25rem; margin-bottom: 0.5rem; }
+            padding: 2rem; max-width: 420px; width: 100%; }
+    h1 { font-size: 1.25rem; margin-bottom: 0.25rem; }
     p { color: #999; font-size: 0.9rem; margin-bottom: 1.5rem; }
-    .user { color: #fff; font-weight: 600; }
     label { display: block; font-size: 0.85rem; color: #aaa; margin-bottom: 0.4rem; }
-    input[type="password"] { width: 100%; padding: 0.6rem 0.8rem; background: #222;
+    input[type="text"], input[type="password"] {
+           width: 100%; padding: 0.6rem 0.8rem; background: #222;
            border: 1px solid #444; border-radius: 6px; color: #fff; font-size: 0.95rem;
-           margin-bottom: 1rem; }
-    input[type="password"]:focus { outline: none; border-color: #666; }
+           margin-bottom: 1rem; font-family: inherit; }
+    input[type="text"]:focus, input[type="password"]:focus { outline: none; border-color: #666; }
     button { width: 100%; padding: 0.7rem; background: #fff; color: #000;
              border: none; border-radius: 6px; font-size: 0.95rem; font-weight: 600;
-             cursor: pointer; }
+             cursor: pointer; margin-top: 0.5rem; }
     button:hover { background: #ddd; }
     .error { background: #3a1a1a; border: 1px solid #662222; border-radius: 6px;
              padding: 0.6rem 0.8rem; margin-bottom: 1rem; color: #f88; font-size: 0.85rem; }
+    .hint { color: #666; font-size: 0.75rem; margin-top: -0.5rem; margin-bottom: 1rem; }
   </style>
 </head>
 <body>
   <div class="card">
-    <h1>Authorize Access</h1>
-    <p>Grant <span class="user">${clientName}</span> access to PluginBrands HubSpot?</p>
+    <h1>Sign in</h1>
+    <p>Authorize access to PluginBrands HubSpot.</p>
     ${error ? `<div class="error">${error}</div>` : ""}
     <form method="POST" action="/authorize">
-      <input type="hidden" name="client_id" value="${clientId}">
-      <input type="hidden" name="redirect_uri" value="${query.redirect_uri || ""}">
-      <input type="hidden" name="code_challenge" value="${query.code_challenge || ""}">
-      <input type="hidden" name="code_challenge_method" value="${query.code_challenge_method || ""}">
-      <input type="hidden" name="state" value="${query.state || ""}">
-      <input type="hidden" name="scope" value="${query.scope || ""}">
-      <input type="hidden" name="response_type" value="${query.response_type || "code"}">
+      <input type="hidden" name="app_client_id" value="${appClientId}">
+      <input type="hidden" name="redirect_uri" value="${escapeAttr(query.redirect_uri || "")}">
+      <input type="hidden" name="code_challenge" value="${escapeAttr(query.code_challenge || "")}">
+      <input type="hidden" name="code_challenge_method" value="${escapeAttr(query.code_challenge_method || "")}">
+      <input type="hidden" name="state" value="${escapeAttr(query.state || "")}">
+      <input type="hidden" name="scope" value="${escapeAttr(query.scope || "")}">
+      <input type="hidden" name="response_type" value="${escapeAttr(query.response_type || "code")}">
+      <label for="client_id">Client ID</label>
+      <input type="text" id="client_id" name="client_id" placeholder="pb_yourname_..." required autofocus autocomplete="username">
       <label for="client_secret">Client Secret</label>
-      <input type="password" id="client_secret" name="client_secret" placeholder="secret_..." required autofocus>
-      <button type="submit">Authorize</button>
+      <input type="password" id="client_secret" name="client_secret" placeholder="secret_..." required autocomplete="current-password">
+      <p class="hint">Use the Client ID and Secret that were sent to you by your PluginBrands admin.</p>
+      <button type="submit">Sign in</button>
     </form>
   </div>
 </body>
@@ -345,24 +354,19 @@ export function createApp(config: AppConfig) {
   // --- OAuth authorize endpoint (authorization_code + PKCE) ---
 
   app.get("/authorize", (req, res) => {
-    const { client_id, response_type } = req.query as Record<string, string>;
+    const { response_type } = req.query as Record<string, string>;
 
     if (response_type !== "code") {
       res.status(400).send("Unsupported response_type. Expected 'code'.");
       return;
     }
 
-    const user = config.users.find((u) => u.client_id === client_id);
-    if (!user) {
-      res.status(400).send("Unknown client_id.");
-      return;
-    }
-
-    res.type("html").send(loginPage(user.name, client_id, req.query as Record<string, string>));
+    res.type("html").send(loginPage(req.query as Record<string, string>));
   });
 
   app.post("/authorize", (req, res) => {
     const {
+      app_client_id,
       client_id,
       client_secret,
       redirect_uri,
@@ -382,27 +386,34 @@ export function createApp(config: AppConfig) {
       return;
     }
 
-    // Validate credentials
+    // The user's credentials come from the form (client_id + client_secret).
+    // The OAuth app identity (app_client_id) is passed through from the URL via a
+    // hidden field; for direct-posts without that field, fall back to the user's
+    // client_id so the token exchange still matches.
+    const appClientId = app_client_id || client_id;
+
     const user = validateCredentials(client_id, client_secret, config.users);
     if (!user) {
       res.type("html").send(
-        loginPage(client_id, client_id, req.body, "Invalid client secret. Please try again.")
+        loginPage(req.body, "Invalid Client ID or Secret. Please try again.")
       );
       return;
     }
 
-    // Generate authorization code (single-use, 5 min TTL)
     const code = randomBytes(32).toString("hex");
     authCodes.set(code, {
-      clientId: client_id,
+      clientId: appClientId,
       codeChallenge: code_challenge || "",
       codeChallengeMethod: code_challenge_method || "",
       redirectUri: redirect_uri,
-      user: { name: user.name, hubspot_owner_id: user.hubspot_owner_id },
+      user: {
+        client_id: user.client_id,
+        name: user.name,
+        hubspot_owner_id: user.hubspot_owner_id,
+      },
       expiresAt: Date.now() + 5 * 60 * 1000,
     });
 
-    // Redirect back to the client with the code
     const redirectUrl = new URL(redirect_uri);
     redirectUrl.searchParams.set("code", code);
     if (state) redirectUrl.searchParams.set("state", state);
@@ -464,7 +475,7 @@ export function createApp(config: AppConfig) {
 
       const token = issueToken(
         {
-          client_id: entry.clientId,
+          client_id: entry.user.client_id,
           name: entry.user.name,
           hubspot_owner_id: entry.user.hubspot_owner_id,
         },
