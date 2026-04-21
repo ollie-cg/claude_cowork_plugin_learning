@@ -11,6 +11,12 @@
       "client_secret_hash": "$2b$10$SKchSrbjYaXkufbACCWPOeaKZ3O4fAkXd4L1hr.ZFtONVzlG6udR6",
       "name": "Danny Armstrong",
       "hubspot_owner_id": "29590940"
+    },
+    {
+      "client_id": "pb_charlie_bdbc8ef60af1",
+      "client_secret_hash": "$2b$10$BzEs8z13OgBOVRR6x52Naul73xcQLZHGINFQqRD1lp84wNxkl4UAW",
+      "name": "Charlie Knight",
+      "hubspot_owner_id": "118594265"
     }
   ]
 }
