@@ -6,6 +6,34 @@ The team member gets:
 1. **Personal OAuth credentials** (Client ID + Secret) that they type into our login page at Connect time
 2. **A zip of the plugin skill** to load as Cowork project knowledge so Claude has the CRM vocabulary
 
+---
+
+## Setup timeline — who does what, in what order
+
+Two distinct things need to happen once per Cowork workspace; everything else is per-user.
+
+| # | Actor | Role | Action | When |
+|---|---|---|---|---|
+| 1 | **Cowork Owner** (e.g. Charlie) | Admin | **Register the connector at the org level.** Organization settings → Connectors → Add → Custom → Web. URL + Name only. Leave OAuth fields blank. | Once per workspace |
+| 2 | **Cowork Owner** (same person) | User | **Connect personally using their own credentials.** This is the same step every member does. The admin action in (1) does NOT authenticate them. | Once, after (1) |
+| 3 | **You (the admin running `add-user`)** | User | Same personal Connect flow as (2). | Once, after (1) |
+| 4 | **Each other team member** (Danny, etc.) | User | Same personal Connect flow as (2). | Whenever they're onboarded |
+
+**Key principle** (per [Anthropic's docs](https://support.claude.com/en/articles/11176164-use-connectors-to-extend-claude-s-capabilities)): *"Enabling a connector makes it available to your team, but it doesn't automatically grant anyone access. Each person still needs to authenticate individually before they can use it."*
+
+Practically: the Cowork Owner does **both** the admin step AND the user step. Don't assume because they added the connector they're signed in — they still have to Connect with their own `pb_firstname_*` creds like anyone else.
+
+### The pieces each person receives
+
+| Person | Needs credentials? | Needs zip? | Needs to upload skill to a Project? |
+|---|---|---|---|
+| Cowork Owner | Yes — their own `pb_firstname_*` pair | Yes | Yes |
+| Every other user | Yes — their own `pb_firstname_*` pair | Yes (same zip — not per-version per-user) | Yes |
+
+The zip is **the same for everyone** until the plugin version changes. `~/Downloads/pluginbrands-toolkit-vX.Y.Z.zip` can be sent to any number of users on the same plugin version.
+
+---
+
 > **Prerequisite (one-time per Cowork workspace):** A Cowork workspace **Owner** must register the PluginBrands HubSpot connector at the org level before any member can connect. See [Org owner setup](#org-owner-setup-one-time) below.
 
 ---
