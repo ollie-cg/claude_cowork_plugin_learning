@@ -1,7 +1,11 @@
 {
   "mcpServers": {
     "hubspot": {
-      "url": "http://localhost:3000/mcp"
+      "type": "sse",
+      "url": "https://disciplined-nurturing-production-776e.up.railway.app/mcp",
+      "headers": {
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjbGllbnRfaWQiOiJwYl90ZXN0XzllMWQ3YWVlOTlkOSIsIm5hbWUiOiJUZXN0IFVzZXIiLCJodWJzcG90X293bmVyX2lkIjoiOTk5IiwiaWF0IjoxNzc0OTU2OTU3LCJleHAiOjE3NzUwNDMzNTd9.7c9W_ZOhkG1pm0e46-iXUqsq28-2HlgQquB3pVI7yhY"
+      }
     }
   }
 }

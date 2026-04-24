@@ -393,13 +393,12 @@ def execute_claude_session(
     else:
         cmd.extend(["--tools", "Bash"])
 
-    cmd.append(prompt)
-
     start_time = time.time()
 
     try:
         proc = subprocess.run(
             cmd,
+            input=prompt,
             capture_output=True,
             text=True,
             timeout=TEST_TIMEOUT,

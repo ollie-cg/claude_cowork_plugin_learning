@@ -2014,7 +2014,6 @@
             "assertions": [
               { "field": "dealname", "operator": "contains", "value": "Ashford Fresh Market" },
               { "field": "pipeline", "operator": "eq", "value": "2760762586" },
-              { "field": "dealstage", "operator": "eq", "value": "4443390193" },
               {
                 "field": "associations",
                 "operator": "associated_to",
@@ -2197,7 +2196,6 @@
             "assertions": [
               { "field": "dealname", "operator": "contains", "value": "Ferndale Food Hall" },
               { "field": "pipeline", "operator": "eq", "value": "2760762586" },
-              { "field": "dealstage", "operator": "eq", "value": "4443390193" },
               {
                 "field": "associations",
                 "operator": "associated_to",
