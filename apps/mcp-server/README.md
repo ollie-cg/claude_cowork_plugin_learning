@@ -106,7 +106,7 @@ Tests mock the HubSpot API — no live API calls needed. See `src/__tests__/` fo
 
 Deploys as a separate Railway service from the same repo. Railway auto-builds from the Dockerfile.
 
-1. Create a new service in the Railway project, pointed at the `mcp-server/` directory
+1. Create a new service in the Railway project, pointed at the `apps/mcp-server/` directory
 2. Set `HUBSPOT_TOKEN` and `JWT_SECRET` environment variables
 3. Railway handles the rest (Dockerfile build, port binding, health checks at `/health`)
 

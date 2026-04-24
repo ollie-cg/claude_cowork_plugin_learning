@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "pluginbrands-toolkit",
-      "source": "./plugins/pluginbrands-toolkit",
+      "source": "./apps/pluginbrands-toolkit",
       "description": "PluginBrands commercial toolkit — HubSpot API query foundation skill",
       "version": "1.2.0",
       "author": {

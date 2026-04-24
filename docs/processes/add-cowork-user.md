@@ -57,7 +57,7 @@ Replace `NAME` with the user's first name. Confirm the returned record matches t
 ### 2. Generate credentials
 
 ```bash
-cd mcp-server
+cd apps/mcp-server
 npm run add-user -- --name "Full Name" --hubspot-owner-id <numeric id>
 ```
 
@@ -68,17 +68,17 @@ Client ID:      pb_<firstname>_<hex>
 Client Secret:  secret_<hex>
 ```
 
-Appends a bcrypt hash of the secret to `mcp-server/users.json`.
+Appends a bcrypt hash of the secret to `apps/mcp-server/users.json`.
 
 ### 3. Commit and push `users.json`
 
 ```bash
-git add mcp-server/users.json
+git add apps/mcp-server/users.json
 git commit -m "access: add Full Name"
 git push origin main
 ```
 
-Railway auto-deploys on push. `users.json` is baked into the Docker image (`mcp-server/Dockerfile`) and loaded once at container start — restart/redeploy is required for changes.
+Railway auto-deploys on push. `users.json` is baked into the Docker image (`apps/mcp-server/Dockerfile`) and loaded once at container start — restart/redeploy is required for changes.
 
 ### 4. Verify the deploy is live
 

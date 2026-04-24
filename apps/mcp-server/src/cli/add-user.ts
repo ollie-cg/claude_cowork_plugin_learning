@@ -1,4 +1,4 @@
-// mcp-server/src/cli/add-user.ts
+// apps/mcp-server/src/cli/add-user.ts
 import { readFileSync, writeFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { hashSync } from "bcryptjs";

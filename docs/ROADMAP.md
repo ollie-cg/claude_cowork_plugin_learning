@@ -56,7 +56,7 @@ The official HubSpot MCP server doesn't support custom objects, which breaks mos
 - Logs every action with user identity
 
 **Implementation phases:**
-1. Scaffold MCP server with OAuth + JWT auth (`mcp-server/` in this repo)
+1. Scaffold MCP server with OAuth + JWT auth (`apps/mcp-server/` in this repo)
 2. Build the 9 HubSpot proxy tools
 3. Deploy to Railway, generate user credentials
 4. Update skills to reference MCP tools instead of curl recipes

@@ -8,8 +8,8 @@ Two components, connected through HubSpot:
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| **Plugin** | `plugins/pluginbrands-toolkit/` | Claude Code plugin with skills that teach Claude the PluginBrands HubSpot data model |
-| **MCP Server** | `mcp-server/` | Standalone Node.js MCP server on Railway that holds the HubSpot token and exposes per-user, attributed access to the CRM (including custom objects) |
+| **Plugin** | `apps/pluginbrands-toolkit/` | Claude Code plugin with skills that teach Claude the PluginBrands HubSpot data model |
+| **MCP Server** | `apps/mcp-server/` | Standalone Node.js MCP server on Railway that holds the HubSpot token and exposes per-user, attributed access to the CRM (including custom objects) |
 
 How they relate:
 
@@ -20,15 +20,17 @@ How they relate:
 
 ```
 .
-├── plugins/
-│   └── pluginbrands-toolkit/           # The production plugin
-│       ├── .claude-plugin/plugin.json
-│       └── skills/
-│           └── hubspot-api-query/      # CRM domain knowledge skill
-├── mcp-server/                         # Custom HubSpot MCP server (Railway)
-│   ├── src/
-│   ├── Dockerfile
-│   └── README.md
+├── apps/
+│   ├── pluginbrands-toolkit/           # The production plugin
+│   │   ├── .claude-plugin/plugin.json
+│   │   └── skills/
+│   │       └── hubspot-api-query/      # CRM domain knowledge skill
+│   └── mcp-server/                     # Custom HubSpot MCP server (Railway)
+│       ├── src/
+│       ├── Dockerfile
+│       └── README.md
+├── .claude-plugin/
+│   └── marketplace.json                # Points Claude Code at apps/pluginbrands-toolkit
 ├── docs/
 │   ├── hubspot-system-guide.md         # Authoritative HubSpot system reference
 │   ├── development-history.md          # Implementation journal and decisions log
@@ -57,7 +59,7 @@ For the full data model, pipelines, automation chains, and API connection detail
 
 ## Plugin
 
-The plugin lives at `plugins/pluginbrands-toolkit/` and contains one skill:
+The plugin lives at `apps/pluginbrands-toolkit/` and contains one skill:
 
 **`hubspot-api-query`** — Teaches Claude the PluginBrands HubSpot data model. Contains custom object IDs, pipeline stage mappings, association types, query recipes, field value standards, and "iron laws" that prevent common errors. This is the core skill — without it, Claude cannot discover numeric custom object IDs via the API and fails on any workflow involving Brands, Product Pitches, or Client Services.
 
@@ -68,18 +70,18 @@ The plugin lives at `plugins/pluginbrands-toolkit/` and contains one skill:
 /plugin install pluginbrands-toolkit@pluginbrands-marketplace
 ```
 
-For team-wide install, committed settings, env vars, and release instructions see `plugins/pluginbrands-toolkit/README.md`.
+For team-wide install, committed settings, env vars, and release instructions see `apps/pluginbrands-toolkit/README.md`.
 
 ## MCP Server
 
-The MCP server lives at `mcp-server/` and is deployed to Railway. It solves two problems with HubSpot's official MCP:
+The MCP server lives at `apps/mcp-server/` and is deployed to Railway. It solves two problems with HubSpot's official MCP:
 
 - The official server doesn't support custom objects, which breaks every PluginBrands workflow.
 - Individual HubSpot tokens on 6 laptops is a credential-sprawl risk.
 
 The server holds a single HubSpot private app token, authenticates each team member via OAuth (client credentials), maps them to their HubSpot owner ID for record attribution, and exposes a small set of generic tools (search, get, create, update, batch read, associations, pipelines, owners) that work across all object types.
 
-See `mcp-server/README.md` for architecture, local development, and deployment instructions.
+See `apps/mcp-server/README.md` for architecture, local development, and deployment instructions.
 
 ## Documentation
 
