@@ -1,22 +1,20 @@
 # PluginBrands Toolkit
 
-Tooling for PluginBrands' commercial operations: a Claude Code plugin for HubSpot CRM workflows, a product catalog app, and a test framework that proves the plugin works.
+Tooling for PluginBrands' commercial operations: a Claude Code plugin for HubSpot CRM workflows, plus a custom MCP server that gives the team centralised, authenticated access to HubSpot including its custom objects.
 
 ## System map
 
-Three components, connected through HubSpot and the Gamma API:
+Two components, connected through HubSpot:
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
 | **Plugin** | `plugins/pluginbrands-toolkit/` | Claude Code plugin with skills that teach Claude the PluginBrands HubSpot data model |
-| **Catalog App** | `catalog-app/` | Next.js web app for managing product data, brand assets, and generating sales decks via Gamma |
-| **Test Harness** | `tests/` | Automated framework that runs CRM workflows against live HubSpot and scores skill effectiveness |
+| **MCP Server** | `mcp-server/` | Standalone Node.js MCP server on Railway that holds the HubSpot token and exposes per-user, attributed access to the CRM (including custom objects) |
 
 How they relate:
 
 - The **plugin** gives Claude domain knowledge (custom object IDs, pipelines, query recipes) so it can work with HubSpot reliably
-- The **catalog app** stores product specifications and images, and generates Gamma presentation decks from that data
-- The **test harness** spawns isolated Claude sessions with and without the plugin skill, runs real CRM workflows, and verifies results via the HubSpot API
+- The **MCP server** centralises the HubSpot credential, authenticates each team member via OAuth, and exposes a small set of generic CRM tools that work with custom objects — something HubSpot's official MCP doesn't support
 
 ## Directory structure
 
@@ -27,25 +25,20 @@ How they relate:
 │       ├── .claude-plugin/plugin.json
 │       └── skills/
 │           └── hubspot-api-query/      # CRM domain knowledge skill
-├── catalog-app/                        # Next.js product catalog + deck generator
+├── mcp-server/                         # Custom HubSpot MCP server (Railway)
 │   ├── src/
-│   │   ├── app/                        # Pages and API routes
-│   │   ├── components/                 # React UI components
-│   │   ├── lib/                        # Database, queries, Gamma client
-│   │   └── types/                      # TypeScript interfaces
-│   └── data/
-│       ├── catalog.db                  # SQLite database
-│       └── images/                     # Product and brand images
-├── tests/
-│   ├── process_registry.json           # Workflow definitions (5 processes)
-│   └── test_harness.py                 # Python test runner (Tier A/B)
+│   ├── Dockerfile
+│   └── README.md
 ├── docs/
 │   ├── hubspot-system-guide.md         # Authoritative HubSpot system reference
 │   ├── development-history.md          # Implementation journal and decisions log
 │   ├── plans/                          # Active design and implementation docs
+│   ├── issues/                         # Known issues and incidents
 │   └── archived/                       # Historical research and superseded plans
 └── .env                                # HubSpot service key (not committed)
 ```
+
+Historical note: this repo also previously contained `catalog-app/` (a Next.js product catalogue + Gamma deck generator) and `tests/` (a Python test harness). Both were offloaded on 2026-04-24 and are preserved on the `archive/catalog-and-harness` branch.
 
 ## The domain
 
@@ -77,68 +70,16 @@ The plugin lives at `plugins/pluginbrands-toolkit/` and contains one skill:
 
 For team-wide install, committed settings, env vars, and release instructions see `plugins/pluginbrands-toolkit/README.md`.
 
-## Catalog App
+## MCP Server
 
-A Next.js web application for managing product catalogs and generating sales presentation decks.
+The MCP server lives at `mcp-server/` and is deployed to Railway. It solves two problems with HubSpot's official MCP:
 
-**Stack:** Next.js 16, React 19, TypeScript, SQLite (better-sqlite3), shadcn/ui, Tailwind CSS
+- The official server doesn't support custom objects, which breaks every PluginBrands workflow.
+- Individual HubSpot tokens on 6 laptops is a credential-sprawl risk.
 
-**Data model:** Brands → Products (50+ fields covering identity, commercial, physical, nutritional, sourcing) → Product Images (hero, pack, lifestyle, nutritional)
+The server holds a single HubSpot private app token, authenticates each team member via OAuth (client credentials), maps them to their HubSpot owner ID for record attribution, and exposes a small set of generic tools (search, get, create, update, batch read, associations, pipelines, owners) that work across all object types.
 
-### Running locally
-
-```bash
-cd catalog-app
-npm install
-npm run dev    # http://localhost:3000
-```
-
-### Key pages
-
-- `/` — Brand grid with logos and product counts
-- `/brands/[id]` — Brand detail with product table
-- `/products/[id]` — Full product editor with image gallery
-- `/brands/new`, `/products/new` — Creation forms
-
-### API
-
-- `GET /api/brands` — All brands with product counts
-- `GET /api/brands/[id]` — Brand detail + products
-- `GET /api/products/[id]` — Product with images
-- `POST /api/decks/gamma` — Generate a Gamma presentation deck from catalog data
-
-## Test Harness
-
-Automated framework that runs CRM workflows against live HubSpot to test the plugin's effectiveness.
-
-### How it works
-
-1. **Pre-cleanup** — Deletes stale `[TEST]`-prefixed records from previous runs
-2. **Execute** — Spawns an isolated Claude session with the workflow prompt
-3. **Verify** — Checks each action via the HubSpot API
-4. **Teardown** — Deletes test records
-
-Runs in two tiers: **Tier A** (no skill) and **Tier B** (with skill). Comparing them measures whether the skill improves reliability and speed.
-
-### Running tests
-
-```bash
-python3 tests/test_harness.py                           # Run all
-python3 tests/test_harness.py --process buyer.onboard   # Run one process
-python3 tests/test_harness.py --tier A                  # Single tier
-python3 tests/test_harness.py --dry-run                 # Preview only
-python3 tests/test_harness.py --yes                     # Skip confirmation
-```
-
-### Defined workflows
-
-| Process | What it tests | Skill needed? |
-|---------|--------------|---------------|
-| `buyer.onboard` | Company + contact + buyer deal creation | No |
-| `buyer.onboard_with_engagements` | Onboarding + notes and calls | No |
-| `buyer.pipeline_progression` | Deal through all 9 pipeline stages | No |
-| `brand.update` | Custom object (Brand) field updates | Marginal |
-| `pitch.update` | Full automation chain with Product Pitches | Yes — Tier A fails, Tier B passes |
+See `mcp-server/README.md` for architecture, local development, and deployment instructions.
 
 ## Documentation
 
@@ -147,11 +88,11 @@ python3 tests/test_harness.py --yes                     # Skip confirmation
 | `docs/hubspot-system-guide.md` | Full HubSpot data model, pipelines, automation chains, API connection details |
 | `docs/development-history.md` | Implementation journal — phases, test results, decisions |
 | `docs/plans/` | Active design and implementation documents |
+| `docs/issues/` | Known issues and incidents |
 | `docs/archived/` | Historical research (LLM scaffolding learnings, old test results, superseded plans) |
 
 ## Prerequisites
 
 - Claude Code CLI installed and authenticated
-- HubSpot service key with CRM read/write access (stored in `.env`)
-- Node.js (for the catalog app)
-- Python 3 (for the test harness)
+- HubSpot service key with CRM read/write access (stored in `.env`, or on the MCP server for team access)
+- Node.js (for the MCP server)

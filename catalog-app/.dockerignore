@@ -1,8 +1,0 @@
-node_modules
-.next
-.env*
-data/catalog.db
-data/catalog.db-shm
-data/catalog.db-wal
-data/images/*
-.git
