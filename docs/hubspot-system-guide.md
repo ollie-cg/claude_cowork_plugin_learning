@@ -484,8 +484,6 @@ Standard objects (Companies, Contacts, Deals) can still be queried by name.
 
 These IDs also work with `/crm/v3/properties/{id}`, `/crm/v3/pipelines/{id}`, and `/crm/v3/objects/{id}/search`.
 
-See [hubspot-connection.md](./hubspot-connection.md) for full endpoint reference, pipeline IDs, and example queries.
-
 ### Legacy pipelines as a fallback
 
 Before Brand and Product Pitch objects existed, buyer outreach was tracked in client-named deal pipelines (e.g., `[D] Moju`). These contain real data but represent the v1 model. Prefer Brand and Product Pitch records — they are the authoritative source for pitch status and product placement.
