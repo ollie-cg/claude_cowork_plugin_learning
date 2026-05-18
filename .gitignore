@@ -24,3 +24,4 @@ MEMORY/
 
 # Scratch / temporary working files
 docs/temporary/
+tmp/
